@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diario v7.0 - Edición Habilitada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .dropdown-content { display: none; position: absolute; background-color: white; min-width: 100%; box-shadow: 0 8px 16px rgba(0,0,0,0.2); z-index: 50; border: 1px solid #e5e7eb; border-radius: 0.5rem; max-height: 250px; overflow-y: auto; }
+        .dropdown-content.show { display: block; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #548235; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        @media print { 
+            @page { size: landscape; margin: 0.5cm; }
+            .no-print { display: none !important; } 
+            body { background-color: white; -webkit-print-color-adjust: exact; } 
+            .print-container { box-shadow: none; border: none; width: 100%; max-width: 100%; margin: 0; padding: 0; } 
+        }
+    </style>
+</head>
+<body class="p-2 md:p-8 min-h-screen flex flex-col items-center">
+
+    <div id="contenedorExportar" class="print-container bg-white w-full max-w-6xl shadow-xl rounded-lg overflow-hidden border border-gray-200 relative">
+        
+        <!-- Indicador de Estado -->
+        <div class="absolute top-4 right-4 text-xs font-bold text-gray-500 no-print flex items-center gap-1 bg-gray-100 px-2 py-1 rounded cursor-pointer border border-gray-300" onclick="location.reload()">
+            <span class="w-2 h-2 rounded-full bg-gray-400" id="statusDot"></span>
+            <span id="statusText">Iniciando v7.0...</span>
+        </div>
+
+        <header class="bg-[#548235] text-white p-6 text-center print:bg-white print:text-black">
+            <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wide">Diario de Campo Docente</h1>
+            <p class="text-sm opacity-90 mt-1 no-print">Usuario: ******** (Edición Habilitada)</p>
+        </header>
+
+        <!-- ALERTA ERROR -->
+        <div id="cajaError" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 mb-0 no-print text-left" role="alert">
+            <p class="font-bold flex items-center"><i data-lucide="alert-triangle" class="w-5 h-5 mr-2"></i> Error de Conexión</p>
+            <p id="textoError" class="text-sm mt-2 font-mono bg-red-50 p-2 rounded border border-red-200">...</p>
+            <button onclick="location.reload()" class="mt-3 bg-red-600 text-white text-xs px-4 py-2 rounded hover:bg-red-700 font-bold shadow">Recargar</button>
+        </div>
+
+        <!-- CAPA DE BLOQUEO -->
+        <div id="capaCarga" class="absolute inset-0 bg-white bg-opacity-95 z-10 flex flex-col items-center justify-center text-center p-6 backdrop-blur-sm transition-opacity duration-500">
+            <div class="loader"></div>
+            <h3 class="text-lg font-bold text-gray-700 mt-4">Conectando a la Nube...</h3>
+            <p class="text-sm text-gray-500">Sincronizando datos</p>
+        </div>
+
+        <!-- FORMULARIO -->
+        <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print transition-colors duration-300">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+                <!-- Fecha -->
+                <div class="flex flex-col lg:col-span-3">
+                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Fecha</label>
+                    <div class="relative">
+                        <input type="date" id="inputFecha" class="w-full p-2 pl-10 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] focus:outline-none cursor-pointer uppercase">
+                        <i data-lucide="calendar" class="absolute left-3 top-2.5 w-4 h-4 text-gray-500 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <!-- Grado -->
+                <div class="flex flex-col lg:col-span-2 relative">
+                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado(s)</label>
+                    <button type="button" onclick="toggleDropdown()" id="btnGrados" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center focus:ring-2 focus:ring-[#548235]">
+                        <span id="textoGradosSeleccionados" class="truncate text-sm">Seleccionar...</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500"></i>
+                    </button>
+                    <div id="dropdownGrados" class="dropdown-content p-2">
+                        <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer border-b border-gray-100 font-bold text-[#548235]">
+                            <input type="checkbox" value="Todos" onchange="seleccionarTodos(this)" class="rounded text-[#548235] focus:ring-[#548235]"> <span>Todos</span>
+                        </label>
+                        <div id="listaCheckboxes">
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="1°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>1°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="2°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>2°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="3°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>3°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="4°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>4°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="5°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>5°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer border-t border-gray-100 mt-1"><input type="checkbox" value="Preescolar" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span class="font-semibold">Preescolar</span></label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Área -->
+                <div class="flex flex-col lg:col-span-7">
+                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área / Asignatura</label>
+                    <select id="inputArea" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] focus:outline-none uppercase font-medium"></select>
+                </div>
+
+                <!-- Tema y Observaciones -->
+                <div class="flex flex-col lg:col-span-12">
+                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Tema / Actividad</label>
+                    <input type="text" id="inputTema" placeholder="Describe la actividad..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] focus:outline-none">
+                </div>
+                <div class="flex flex-col lg:col-span-12">
+                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Observaciones</label>
+                    <textarea id="inputObs" rows="2" placeholder="Notas..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] focus:outline-none"></textarea>
+                </div>
+            </div>
+
+            <!-- Botonera de Acción -->
+            <div class="flex gap-2 mt-4">
+                <button id="btnAgregar" onclick="guardarEnNube()" class="flex-1 bg-[#548235] hover:bg-[#43692a] text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm" disabled>
+                    <i data-lucide="save" class="w-5 h-5"></i> <span id="btnText">Esperando...</span>
+                </button>
+                
+                <!-- Botón Cancelar Edición (Oculto por defecto) -->
+                <button id="btnCancelar" onclick="cancelarEdicion()" class="hidden bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
+                    <i data-lucide="x-circle" class="w-5 h-5"></i> Cancelar
+                </button>
+            </div>
+        </section>
+
+        <!-- Tabla -->
+        <div class="p-4 md:p-6 overflow-x-auto">
+            <table class="w-full border-collapse border border-black min-w-[600px]" id="tablaDiario">
+                <thead>
+                    <tr class="bg-gray-50 print:bg-transparent">
+                        <th class="border border-black p-2 w-10 text-center bg-white">&nbsp;</th>
+                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-28 bg-white">Fecha</th>
+                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-24 bg-white">Grado</th>
+                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-48 bg-white">Área</th>
+                        <th class="border border-black p-2 text-sm font-bold uppercase text-left bg-white">Tema y/o Actividad</th>
+                        <th class="border border-black p-2 text-sm font-bold uppercase text-left bg-white">Observaciones</th>
+                        <th class="border border-black p-2 text-sm font-bold uppercase text-center w-24 bg-white no-print">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoTabla"></tbody>
+            </table>
+            
+            <div id="loadingData" class="loader hidden"></div>
+            <div id="mensajeVacio" class="text-center py-10 text-gray-400 italic hidden">
+                <i data-lucide="cloud-off" class="w-12 h-12 mx-auto mb-2 opacity-20"></i>
+                <p>No hay datos guardados.</p>
+            </div>
+        </div>
+
+        <footer id="footerApp" class="bg-gray-50 p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
+            <div class="text-xs text-gray-400 font-mono">ID: ********</div>
+            <button id="btnExportar" onclick="descargarPDF()" class="w-full sm:w-auto bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105" disabled>
+                <i data-lucide="download" class="w-5 h-5"></i> Descargar PDF Horizontal
+            </button>
+        </footer>
+    </div>
+
+    <!-- Scripts de Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+        // CREDENCIALES
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2MJ-jdwQeT6sOfZ21tCrFYzGiuTNOAJ8",
+            authDomain: "diariodeprocesos-6f78d.firebaseapp.com",
+            projectId: "diariodeprocesos-6f78d",
+            storageBucket: "diariodeprocesos-6f78d.firebasestorage.app",
+            messagingSenderId: "487922338632",
+            appId: "1:487922338632:web:7a0d3e38b4dc2ad9b0817d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        const CLAVE_PERSONAL = "Gusanito43@";
+        let unsubscribeSnapshot = null;
+        
+        // VARIABLES DE ESTADO DE EDICIÓN
+        window.idEdicionActual = null; 
+
+        // CONEXIÓN
+        async function conectarFirebase() {
+            try { await signInAnonymously(auth); } catch (error) { manejarError(error); }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('capaCarga').style.display = 'none';
+                
+                document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+                document.getElementById('statusText').textContent = "En Línea";
+                document.getElementById('statusText').className = "text-green-600 font-bold";
+                
+                document.getElementById('btnAgregar').disabled = false;
+                document.getElementById('btnText').textContent = "Guardar en Nube";
+                document.getElementById('btnExportar').disabled = false;
+                lucide.createIcons();
+
+                cargarDatosPersonales();
+            } else {
+                manejarError({code: 'auth/disconnected', message: "Sesión desconectada."});
+            }
+        });
+
+        function manejarError(error) {
+            const caja = document.getElementById('cajaError');
+            document.getElementById('capaCarga').style.display = 'none';
+            caja.classList.remove('hidden');
+            document.getElementById('textoError').textContent = `${error.code}: ${error.message}`;
+            document.getElementById('statusText').textContent = "Error";
+            document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-red-500";
+        }
+
+        // CARGAR DATOS
+        function cargarDatosPersonales() {
+            const loading = document.getElementById('loadingData');
+            loading.classList.remove('hidden');
+            loading.style.display = 'block';
+
+            const q = query(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'));
+
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+
+            unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+                loading.style.display = 'none';
+                const tbody = document.getElementById('cuerpoTabla');
+                tbody.innerHTML = '';
+                const entradas = [];
+                snapshot.forEach(doc => entradas.push({ id: doc.id, ...doc.data() }));
+                
+                entradas.sort((a, b) => new Date(b.fechaRaw || 0) - new Date(a.fechaRaw || 0) || b.timestamp - a.timestamp);
+
+                if (entradas.length === 0) {
+                    document.getElementById('mensajeVacio').classList.remove('hidden');
+                } else {
+                    document.getElementById('mensajeVacio').classList.add('hidden');
+                    let ultimaFecha = "";
+                    entradas.forEach(dato => {
+                        const mostrarFecha = dato.fechaFormateada !== ultimaFecha;
+                        renderizarFila(dato, mostrarFecha);
+                        ultimaFecha = dato.fechaFormateada;
+                    });
+                }
+                lucide.createIcons();
+            }, (error) => {
+                console.error("Error lectura:", error);
+                loading.style.display = 'none';
+            });
+        }
+
+        function renderizarFila(dato, mostrarFecha) {
+            const tbody = document.getElementById('cuerpoTabla');
+            const tr = document.createElement('tr');
+            const css = "border border-black p-2 text-sm align-top bg-white";
+            const contenidoFecha = mostrarFecha ? dato.fechaFormateada : "";
+
+            tr.innerHTML = `
+                <td class="${css} w-10 text-center"><input type="checkbox" class="w-4 h-4 text-[#548235]"></td>
+                <td class="${css} font-bold text-[#548235]">${contenidoFecha}</td>
+                <td class="${css} font-semibold">${dato.grados}</td>
+                <td class="${css} uppercase text-xs font-semibold">${dato.area}</td>
+                <td class="${css}">${dato.tema}</td>
+                <td class="${css}">${dato.obs}</td>
+                <td class="${css} text-center no-print border-none flex gap-1 justify-center">
+                    <button class="btn-editar text-blue-600 hover:bg-blue-100 p-2 rounded" title="Editar Registro">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                    <button class="btn-borrar text-red-500 hover:bg-red-100 p-2 rounded" title="Borrar Registro">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </td>
+            `;
+            
+            // Asignar eventos
+            tr.querySelector('.btn-borrar').onclick = () => borrarDato(dato.id);
+            
+            // Evento editar: Pasamos el objeto dato completo
+            tr.querySelector('.btn-editar').onclick = () => {
+                // Scroll arriba
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                prepararEdicion(dato);
+            };
+
+            tbody.appendChild(tr);
+        }
+
+        // --- LÓGICA DE EDICIÓN ---
+        
+        window.prepararEdicion = (dato) => {
+            window.idEdicionActual = dato.id;
+            
+            // Cambiar UI a modo edición
+            const form = document.getElementById('seccionFormulario');
+            form.classList.add('bg-blue-50'); // Indicador visual
+            
+            const btn = document.getElementById('btnAgregar');
+            btn.classList.replace('bg-[#548235]', 'bg-blue-600');
+            btn.classList.replace('hover:bg-[#43692a]', 'hover:bg-blue-700');
+            document.getElementById('btnText').textContent = "Actualizar Registro";
+            
+            document.getElementById('btnCancelar').classList.remove('hidden');
+
+            // Rellenar campos
+            document.getElementById('inputFecha').value = dato.fechaRaw;
+            document.getElementById('inputArea').value = dato.area; // Primero área para que cargue la lista
+            
+            // Truco: Cargar lista de áreas correcta según si hay preescolar en el texto de grados
+            const esPreescolar = dato.grados.includes('Preescolar');
+            actualizarAreas(esPreescolar, !esPreescolar && dato.grados !== 'Preescolar', false); 
+            // Timeout pequeño para asegurar que el select se llenó antes de asignar valor
+            setTimeout(() => { document.getElementById('inputArea').value = dato.area; }, 50);
+
+            document.getElementById('inputTema').value = dato.tema;
+            document.getElementById('inputObs').value = dato.obs;
+
+            // Rellenar checkboxes de grados
+            const checkboxes = document.querySelectorAll('.grado-checkbox');
+            checkboxes.forEach(cb => {
+                if (dato.grados.includes(cb.value) || dato.grados === "Todos") {
+                    cb.checked = true;
+                } else {
+                    cb.checked = false;
+                }
+            });
+            // Si es "Todos", marcar el check de todos
+            if (dato.grados === "Todos") document.querySelector('input[value="Todos"]').checked = true;
+            
+            actualizarTextoGrados();
+        };
+
+        window.cancelarEdicion = () => {
+            window.idEdicionActual = null;
+            
+            // Reset UI
+            document.getElementById('seccionFormulario').classList.remove('bg-blue-50');
+            const btn = document.getElementById('btnAgregar');
+            btn.classList.replace('bg-blue-600', 'bg-[#548235]');
+            btn.classList.replace('hover:bg-blue-700', 'hover:bg-[#43692a]');
+            document.getElementById('btnText').textContent = "Guardar en Nube";
+            
+            document.getElementById('btnCancelar').classList.add('hidden');
+            
+            // Limpiar campos texto
+            document.getElementById('inputTema').value = '';
+            document.getElementById('inputObs').value = '';
+            // No limpiamos fecha ni grado por comodidad
+        };
+
+        window.guardarEnNube = async () => {
+            const btn = document.getElementById('btnAgregar');
+            const btnTxt = document.getElementById('btnText');
+            
+            const fecha = document.getElementById('inputFecha').value;
+            const grados = document.getElementById('textoGradosSeleccionados').textContent;
+            const area = document.getElementById('inputArea').value;
+            const tema = document.getElementById('inputTema').value;
+            const obs = document.getElementById('inputObs').value;
+
+            if (!fecha || !tema || grados === "Seleccionar...") {
+                alert("Faltan datos (Fecha, Grados o Tema)");
+                return;
+            }
+
+            btn.disabled = true;
+            btnTxt.textContent = "Procesando...";
+
+            const [y, m, d] = fecha.split('-');
+            const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+            const fechaVisual = `${d}.${meses[parseInt(m)-1]}.${y}`;
+
+            const datosGuardar = {
+                fechaRaw: fecha,
+                fechaFormateada: fechaVisual,
+                grados, area, tema, obs,
+                timestamp: Date.now()
+            };
+
+            try {
+                if (window.idEdicionActual) {
+                    // ACTUALIZAR (UPDATE)
+                    await updateDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', window.idEdicionActual), datosGuardar);
+                    cancelarEdicion(); // Salir modo edición
+                } else {
+                    // CREAR NUEVO (ADD)
+                    await addDoc(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'), datosGuardar);
+                    // Limpiar solo inputs de texto
+                    document.getElementById('inputTema').value = '';
+                    document.getElementById('inputObs').value = '';
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Error al guardar: " + error.message);
+            } finally {
+                btn.disabled = false;
+                if(!window.idEdicionActual) btnTxt.textContent = "Guardar en Nube";
+                else btnTxt.textContent = "Actualizar Registro";
+            }
+        };
+
+        window.borrarDato = async (id) => {
+            if (confirm("¿Borrar permanentemente?")) {
+                try { 
+                    await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id)); 
+                    // Si estaba editando este mismo, cancelar
+                    if(window.idEdicionActual === id) cancelarEdicion();
+                } catch (e) { alert("Error: " + e.message); }
+            }
+        };
+
+        // Iniciar
+        document.getElementById('inputFecha').valueAsDate = new Date();
+        conectarFirebase();
+        lucide.createIcons();
+    </script>
+
+    <!-- UI Scripts -->
+    <script>
+        function toggleDropdown() { document.getElementById("dropdownGrados").classList.toggle("show"); }
+        window.onclick = function(e) { if (!e.target.closest('#btnGrados') && !e.target.closest('.dropdown-content')) { document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show')); } }
+        
+        function seleccionarTodos(source) {
+            document.querySelectorAll('.grado-checkbox').forEach(cb => cb.checked = source.checked);
+            actualizarTextoGrados();
+        }
+
+        function actualizarTextoGrados() {
+            const cbs = document.querySelectorAll('.grado-checkbox:checked');
+            const vals = Array.from(cbs).map(cb => cb.value);
+            const btn = document.getElementById('textoGradosSeleccionados');
+            const allCb = document.querySelector('input[value="Todos"]');
+            let hayPreescolar = vals.includes('Preescolar');
+            let hayOtros = vals.some(v => v !== 'Preescolar');
+            if (vals.length === 6) { btn.textContent = "Todos"; allCb.checked = true; }
+            else if (vals.length === 0) { btn.textContent = "Seleccionar..."; allCb.checked = false; }
+            else { btn.textContent = vals.join(", "); allCb.checked = false; }
+            actualizarAreas(hayPreescolar, hayOtros, vals.length === 6);
+        }
+
+        const opPrimaria = `<optgroup label="Áreas"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="Proyectos"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><optgroup label="Otros"><option class="font-bold text-green-700">HORAS COMPLEMENTARIAS</option></optgroup>`;
+        const opPreescolar = `<optgroup label="Dimensiones"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="Proyectos"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup>`;
+
+        function actualizarAreas(hayPre, hayOtros, esTodos) {
+            const sel = document.getElementById('inputArea');
+            const valorActual = sel.value; // Intentar preservar selección
+            sel.innerHTML = (hayPre && !hayOtros && !esTodos) ? opPreescolar : opPrimaria;
+            // Si el valor anterior existe en la nueva lista, mantenerlo
+            const existe = Array.from(sel.options).some(op => op.value === valorActual);
+            if(existe) sel.value = valorActual;
+        }
+        actualizarAreas(false, true, false);
+
+        function descargarPDF() {
+            const elemento = document.getElementById('contenedorExportar');
+            const btn = document.getElementById('btnExportar');
+            const txtOriginal = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Generando PDF...`;
+            btn.disabled = true;
+            lucide.createIcons();
+            const ocultos = ['seccionFormulario', 'footerApp', 'cajaError']; 
+            ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+            document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+            const opt = { margin: 0.5, filename: 'Diario_Gusanito43.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } };
+            html2pdf().set(opt).from(elemento).save().then(() => {
+                ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
+                document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
+                btn.innerHTML = txtOriginal;
+                btn.disabled = false;
+                lucide.createIcons();
+            });
+        }
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diario v7.0 - Edición Habilitada</title>
+    <title>Diario v8.0 - Offline</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -30,27 +30,13 @@
         <!-- Indicador de Estado -->
         <div class="absolute top-4 right-4 text-xs font-bold text-gray-500 no-print flex items-center gap-1 bg-gray-100 px-2 py-1 rounded cursor-pointer border border-gray-300" onclick="location.reload()">
             <span class="w-2 h-2 rounded-full bg-gray-400" id="statusDot"></span>
-            <span id="statusText">Iniciando v7.0...</span>
+            <span id="statusText">Iniciando...</span>
         </div>
 
         <header class="bg-[#548235] text-white p-6 text-center print:bg-white print:text-black">
             <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wide">Diario de Campo Docente</h1>
-            <p class="text-sm opacity-90 mt-1 no-print">Usuario: ******** (Edición Habilitada)</p>
+            <p class="text-sm opacity-90 mt-1 no-print">Usuario: ******** (Modo Offline Activado)</p>
         </header>
-
-        <!-- ALERTA ERROR -->
-        <div id="cajaError" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 mb-0 no-print text-left" role="alert">
-            <p class="font-bold flex items-center"><i data-lucide="alert-triangle" class="w-5 h-5 mr-2"></i> Error de Conexión</p>
-            <p id="textoError" class="text-sm mt-2 font-mono bg-red-50 p-2 rounded border border-red-200">...</p>
-            <button onclick="location.reload()" class="mt-3 bg-red-600 text-white text-xs px-4 py-2 rounded hover:bg-red-700 font-bold shadow">Recargar</button>
-        </div>
-
-        <!-- CAPA DE BLOQUEO -->
-        <div id="capaCarga" class="absolute inset-0 bg-white bg-opacity-95 z-10 flex flex-col items-center justify-center text-center p-6 backdrop-blur-sm transition-opacity duration-500">
-            <div class="loader"></div>
-            <h3 class="text-lg font-bold text-gray-700 mt-4">Conectando a la Nube...</h3>
-            <p class="text-sm text-gray-500">Sincronizando datos</p>
-        </div>
 
         <!-- FORMULARIO -->
         <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print transition-colors duration-300">
@@ -103,13 +89,10 @@
                 </div>
             </div>
 
-            <!-- Botonera de Acción -->
             <div class="flex gap-2 mt-4">
-                <button id="btnAgregar" onclick="guardarEnNube()" class="flex-1 bg-[#548235] hover:bg-[#43692a] text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm" disabled>
-                    <i data-lucide="save" class="w-5 h-5"></i> <span id="btnText">Esperando...</span>
+                <button id="btnAgregar" onclick="guardarEnNube()" class="flex-1 bg-[#548235] hover:bg-[#43692a] text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
+                    <i data-lucide="save" class="w-5 h-5"></i> <span id="btnText">Guardar</span>
                 </button>
-                
-                <!-- Botón Cancelar Edición (Oculto por defecto) -->
                 <button id="btnCancelar" onclick="cancelarEdicion()" class="hidden bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
                     <i data-lucide="x-circle" class="w-5 h-5"></i> Cancelar
                 </button>
@@ -136,13 +119,13 @@
             <div id="loadingData" class="loader hidden"></div>
             <div id="mensajeVacio" class="text-center py-10 text-gray-400 italic hidden">
                 <i data-lucide="cloud-off" class="w-12 h-12 mx-auto mb-2 opacity-20"></i>
-                <p>No hay datos guardados.</p>
+                <p>No hay datos.</p>
             </div>
         </div>
 
         <footer id="footerApp" class="bg-gray-50 p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
             <div class="text-xs text-gray-400 font-mono">ID: ********</div>
-            <button id="btnExportar" onclick="descargarPDF()" class="w-full sm:w-auto bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105" disabled>
+            <button id="btnExportar" onclick="descargarPDF()" class="w-full sm:w-auto bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105">
                 <i data-lucide="download" class="w-5 h-5"></i> Descargar PDF Horizontal
             </button>
         </footer>
@@ -152,7 +135,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
         // CREDENCIALES
         const firebaseConfig = {
@@ -170,49 +153,56 @@
         
         const CLAVE_PERSONAL = "Gusanito43@";
         let unsubscribeSnapshot = null;
-        
-        // VARIABLES DE ESTADO DE EDICIÓN
         window.idEdicionActual = null; 
 
-        // CONEXIÓN
-        async function conectarFirebase() {
-            try { await signInAnonymously(auth); } catch (error) { manejarError(error); }
-        }
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('capaCarga').style.display = 'none';
-                
-                document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
-                document.getElementById('statusText').textContent = "En Línea";
-                document.getElementById('statusText').className = "text-green-600 font-bold";
-                
-                document.getElementById('btnAgregar').disabled = false;
-                document.getElementById('btnText').textContent = "Guardar en Nube";
-                document.getElementById('btnExportar').disabled = false;
-                lucide.createIcons();
-
-                cargarDatosPersonales();
-            } else {
-                manejarError({code: 'auth/disconnected', message: "Sesión desconectada."});
+        // 1. HABILITAR PERSISTENCIA OFFLINE (Lo más importante)
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.log('Persistencia fallida: Múltiples pestañas abiertas.');
+            } else if (err.code == 'unimplemented') {
+                console.log('El navegador no soporta persistencia offline.');
             }
         });
 
-        function manejarError(error) {
-            const caja = document.getElementById('cajaError');
-            document.getElementById('capaCarga').style.display = 'none';
-            caja.classList.remove('hidden');
-            document.getElementById('textoError').textContent = `${error.code}: ${error.message}`;
-            document.getElementById('statusText').textContent = "Error";
-            document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-red-500";
+        // 2. MONITOREO DE CONEXIÓN (Para UI)
+        function actualizarEstadoRed() {
+            const dot = document.getElementById('statusDot');
+            const txt = document.getElementById('statusText');
+            if (navigator.onLine) {
+                dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+                txt.textContent = "En Línea (Sincronizado)";
+                txt.className = "text-green-600 font-bold";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-orange-500";
+                txt.textContent = "Sin Conexión (Guardando local)";
+                txt.className = "text-orange-600 font-bold";
+            }
         }
+        window.addEventListener('online', actualizarEstadoRed);
+        window.addEventListener('offline', actualizarEstadoRed);
+        actualizarEstadoRed(); // Iniciar
 
-        // CARGAR DATOS
+        // 3. AUTENTICACIÓN SILENCIOSA
+        // Intentamos loguear. Si no hay red, Firebase usará la sesión cacheada automáticamente.
+        signInAnonymously(auth).catch((error) => {
+            console.log("Iniciando en modo offline (auth caché):", error.code);
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("Usuario autenticado (puede ser offline)");
+                lucide.createIcons();
+                cargarDatosPersonales();
+            }
+        });
+
+        // 4. CARGAR DATOS (Funciona Offline gracias a la persistencia)
         function cargarDatosPersonales() {
             const loading = document.getElementById('loadingData');
             loading.classList.remove('hidden');
             loading.style.display = 'block';
 
+            // Firebase gestiona la caché local vs servidor automáticamente aquí
             const q = query(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'));
 
             if (unsubscribeSnapshot) unsubscribeSnapshot();
@@ -222,7 +212,11 @@
                 const tbody = document.getElementById('cuerpoTabla');
                 tbody.innerHTML = '';
                 const entradas = [];
-                snapshot.forEach(doc => entradas.push({ id: doc.id, ...doc.data() }));
+                
+                // metadata.hasPendingWrites es true si el dato aún no ha subido al servidor
+                snapshot.forEach(doc => {
+                    entradas.push({ id: doc.id, ...doc.data(), pendiente: doc.metadata.hasPendingWrites });
+                });
                 
                 entradas.sort((a, b) => new Date(b.fechaRaw || 0) - new Date(a.fechaRaw || 0) || b.timestamp - a.timestamp);
 
@@ -238,9 +232,6 @@
                     });
                 }
                 lucide.createIcons();
-            }, (error) => {
-                console.error("Error lectura:", error);
-                loading.style.display = 'none';
             });
         }
 
@@ -249,103 +240,78 @@
             const tr = document.createElement('tr');
             const css = "border border-black p-2 text-sm align-top bg-white";
             const contenidoFecha = mostrarFecha ? dato.fechaFormateada : "";
+            
+            // Indicador visual si está pendiente de subir
+            const estiloPendiente = dato.pendiente ? "opacity-50 italic" : "";
+            const iconoPendiente = dato.pendiente ? `<i data-lucide="cloud-upload" class="w-3 h-3 inline text-orange-500 ml-1" title="Pendiente de subir"></i>` : "";
 
             tr.innerHTML = `
                 <td class="${css} w-10 text-center"><input type="checkbox" class="w-4 h-4 text-[#548235]"></td>
                 <td class="${css} font-bold text-[#548235]">${contenidoFecha}</td>
                 <td class="${css} font-semibold">${dato.grados}</td>
                 <td class="${css} uppercase text-xs font-semibold">${dato.area}</td>
-                <td class="${css}">${dato.tema}</td>
-                <td class="${css}">${dato.obs}</td>
+                <td class="${css} ${estiloPendiente}">${dato.tema} ${iconoPendiente}</td>
+                <td class="${css} ${estiloPendiente}">${dato.obs}</td>
                 <td class="${css} text-center no-print border-none flex gap-1 justify-center">
-                    <button class="btn-editar text-blue-600 hover:bg-blue-100 p-2 rounded" title="Editar Registro">
+                    <button class="btn-editar text-blue-600 hover:bg-blue-100 p-2 rounded" title="Editar">
                         <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
-                    <button class="btn-borrar text-red-500 hover:bg-red-100 p-2 rounded" title="Borrar Registro">
+                    <button class="btn-borrar text-red-500 hover:bg-red-100 p-2 rounded" title="Borrar">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 </td>
             `;
             
-            // Asignar eventos
             tr.querySelector('.btn-borrar').onclick = () => borrarDato(dato.id);
-            
-            // Evento editar: Pasamos el objeto dato completo
             tr.querySelector('.btn-editar').onclick = () => {
-                // Scroll arriba
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 prepararEdicion(dato);
             };
-
             tbody.appendChild(tr);
         }
 
         // --- LÓGICA DE EDICIÓN ---
-        
         window.prepararEdicion = (dato) => {
             window.idEdicionActual = dato.id;
-            
-            // Cambiar UI a modo edición
             const form = document.getElementById('seccionFormulario');
-            form.classList.add('bg-blue-50'); // Indicador visual
-            
+            form.classList.add('bg-blue-50');
             const btn = document.getElementById('btnAgregar');
             btn.classList.replace('bg-[#548235]', 'bg-blue-600');
             btn.classList.replace('hover:bg-[#43692a]', 'hover:bg-blue-700');
             document.getElementById('btnText').textContent = "Actualizar Registro";
-            
             document.getElementById('btnCancelar').classList.remove('hidden');
 
-            // Rellenar campos
             document.getElementById('inputFecha').value = dato.fechaRaw;
-            document.getElementById('inputArea').value = dato.area; // Primero área para que cargue la lista
+            document.getElementById('inputArea').value = dato.area;
             
-            // Truco: Cargar lista de áreas correcta según si hay preescolar en el texto de grados
             const esPreescolar = dato.grados.includes('Preescolar');
             actualizarAreas(esPreescolar, !esPreescolar && dato.grados !== 'Preescolar', false); 
-            // Timeout pequeño para asegurar que el select se llenó antes de asignar valor
             setTimeout(() => { document.getElementById('inputArea').value = dato.area; }, 50);
 
             document.getElementById('inputTema').value = dato.tema;
             document.getElementById('inputObs').value = dato.obs;
 
-            // Rellenar checkboxes de grados
             const checkboxes = document.querySelectorAll('.grado-checkbox');
             checkboxes.forEach(cb => {
-                if (dato.grados.includes(cb.value) || dato.grados === "Todos") {
-                    cb.checked = true;
-                } else {
-                    cb.checked = false;
-                }
+                cb.checked = dato.grados.includes(cb.value) || dato.grados === "Todos";
             });
-            // Si es "Todos", marcar el check de todos
             if (dato.grados === "Todos") document.querySelector('input[value="Todos"]').checked = true;
-            
             actualizarTextoGrados();
         };
 
         window.cancelarEdicion = () => {
             window.idEdicionActual = null;
-            
-            // Reset UI
             document.getElementById('seccionFormulario').classList.remove('bg-blue-50');
             const btn = document.getElementById('btnAgregar');
             btn.classList.replace('bg-blue-600', 'bg-[#548235]');
             btn.classList.replace('hover:bg-blue-700', 'hover:bg-[#43692a]');
-            document.getElementById('btnText').textContent = "Guardar en Nube";
-            
+            document.getElementById('btnText').textContent = "Guardar";
             document.getElementById('btnCancelar').classList.add('hidden');
-            
-            // Limpiar campos texto
             document.getElementById('inputTema').value = '';
             document.getElementById('inputObs').value = '';
-            // No limpiamos fecha ni grado por comodidad
         };
 
         window.guardarEnNube = async () => {
-            const btn = document.getElementById('btnAgregar');
-            const btnTxt = document.getElementById('btnText');
-            
             const fecha = document.getElementById('inputFecha').value;
             const grados = document.getElementById('textoGradosSeleccionados').textContent;
             const area = document.getElementById('inputArea').value;
@@ -353,51 +319,38 @@
             const obs = document.getElementById('inputObs').value;
 
             if (!fecha || !tema || grados === "Seleccionar...") {
-                alert("Faltan datos (Fecha, Grados o Tema)");
-                return;
+                alert("Faltan datos obligatorios."); return;
             }
-
-            btn.disabled = true;
-            btnTxt.textContent = "Procesando...";
 
             const [y, m, d] = fecha.split('-');
             const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
             const fechaVisual = `${d}.${meses[parseInt(m)-1]}.${y}`;
 
             const datosGuardar = {
-                fechaRaw: fecha,
-                fechaFormateada: fechaVisual,
-                grados, area, tema, obs,
-                timestamp: Date.now()
+                fechaRaw: fecha, fechaFormateada: fechaVisual, grados, area, tema, obs, timestamp: Date.now()
             };
 
+            // Guardado Optimista (No bloqueamos UI esperando la red)
             try {
                 if (window.idEdicionActual) {
-                    // ACTUALIZAR (UPDATE)
                     await updateDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', window.idEdicionActual), datosGuardar);
-                    cancelarEdicion(); // Salir modo edición
+                    cancelarEdicion();
                 } else {
-                    // CREAR NUEVO (ADD)
                     await addDoc(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'), datosGuardar);
-                    // Limpiar solo inputs de texto
                     document.getElementById('inputTema').value = '';
                     document.getElementById('inputObs').value = '';
                 }
+                // Si estamos offline, Firebase lo encola silenciosamente.
             } catch (error) {
                 console.error(error);
-                alert("Error al guardar: " + error.message);
-            } finally {
-                btn.disabled = false;
-                if(!window.idEdicionActual) btnTxt.textContent = "Guardar en Nube";
-                else btnTxt.textContent = "Actualizar Registro";
+                alert("Error: " + error.message);
             }
         };
 
         window.borrarDato = async (id) => {
-            if (confirm("¿Borrar permanentemente?")) {
+            if (confirm("¿Borrar?")) {
                 try { 
                     await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id)); 
-                    // Si estaba editando este mismo, cancelar
                     if(window.idEdicionActual === id) cancelarEdicion();
                 } catch (e) { alert("Error: " + e.message); }
             }
@@ -405,7 +358,6 @@
 
         // Iniciar
         document.getElementById('inputFecha').valueAsDate = new Date();
-        conectarFirebase();
         lucide.createIcons();
     </script>
 
@@ -437,9 +389,8 @@
 
         function actualizarAreas(hayPre, hayOtros, esTodos) {
             const sel = document.getElementById('inputArea');
-            const valorActual = sel.value; // Intentar preservar selección
+            const valorActual = sel.value; 
             sel.innerHTML = (hayPre && !hayOtros && !esTodos) ? opPreescolar : opPrimaria;
-            // Si el valor anterior existe en la nueva lista, mantenerlo
             const existe = Array.from(sel.options).some(op => op.value === valorActual);
             if(existe) sel.value = valorActual;
         }
@@ -467,3 +418,4 @@
     </script>
 </body>
 </html>
+

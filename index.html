@@ -1,4 +1,4 @@
-here<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -40,6 +40,17 @@ here<!DOCTYPE html>
             <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wide">Diario de Campo Docente</h1>
             <p class="text-sm opacity-90 mt-1 no-print">Usuario: ******** (Modo Offline Activado)</p>
         </header>
+        
+        <!-- CAJA DE ERRORES (Nueva para diagnóstico) -->
+        <div id="cajaError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mx-4 mt-4 hidden">
+            <strong class="font-bold">Error de Sincronización:</strong>
+            <span class="block sm:inline" id="mensajeError"></span>
+            <span onclick="document.getElementById('cajaError').classList.add('hidden')" class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer">
+                <i data-lucide="x" class="w-5 h-5 fill-current"></i>
+            </span>
+        </div>
+        <!-- FIN CAJA DE ERRORES -->
+
 
         <!-- FORMULARIO -->
         <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print transition-colors duration-300">
@@ -107,6 +118,7 @@ here<!DOCTYPE html>
             <table class="w-full border-collapse border border-black min-w-[600px]" id="tablaDiario">
                 <thead>
                     <tr class="bg-gray-50 print:bg-transparent">
+                        <th class="border border-black p-2 w-10 text-center bg-white text-sm font-bold uppercase w-[50px]">No.</th>
                         <th class="border border-black p-2 w-10 text-center bg-white">&nbsp;</th>
                         <th class="border border-black p-2 text-sm font-bold uppercase text-left w-28 bg-white">Fecha</th>
                         <th class="border border-black p-2 text-sm font-bold uppercase text-left w-24 bg-white">Grado</th>
@@ -139,6 +151,16 @@ here<!DOCTYPE html>
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+        
+        // --- FUNCIÓN DE DIAGNÓSTICO DE ERRORES ---
+        function mostrarError(mensaje) {
+            document.getElementById('cajaError').classList.remove('hidden');
+            document.getElementById('mensajeError').textContent = mensaje;
+            // Ocultar después de 8 segundos
+            setTimeout(() => {
+                document.getElementById('cajaError').classList.add('hidden');
+            }, 8000); 
+        }
 
         // CREDENCIALES
         const firebaseConfig = {
@@ -154,11 +176,12 @@ here<!DOCTYPE html>
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        const CLAVE_PERSONAL = "Gusanito43@";
+        // Esta CLAVE PERSONAL se usa como una "carpeta" única en la base de datos para este usuario.
+        const CLAVE_PERSONAL = "Gusanito43@"; 
         let unsubscribeSnapshot = null;
         window.idEdicionActual = null; 
 
-        // 1. HABILITAR PERSISTENCIA OFFLINE (Lo más importante)
+        // 1. HABILITAR PERSISTENCIA OFFLINE (Firestore)
         enableIndexedDbPersistence(db).catch((err) => {
             if (err.code == 'failed-precondition') {
                 console.log('Persistencia fallida: Múltiples pestañas abiertas.');
@@ -186,9 +209,8 @@ here<!DOCTYPE html>
         actualizarEstadoRed(); // Iniciar
 
         // 3. AUTENTICACIÓN SILENCIOSA
-        // Intentamos loguear. Si no hay red, Firebase usará la sesión cacheada automáticamente.
         signInAnonymously(auth).catch((error) => {
-            console.log("Iniciando en modo offline (auth caché):", error.code);
+             mostrarError("Fallo en la Autenticación: " + error.code);
         });
 
         onAuthStateChanged(auth, (user) => {
@@ -205,7 +227,7 @@ here<!DOCTYPE html>
             loading.classList.remove('hidden');
             loading.style.display = 'block';
 
-            // Firebase gestiona la caché local vs servidor automáticamente aquí
+            // Ruta de la colección: diarios_docentes/{CLAVE_PERSONAL}/entradas
             const q = query(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'));
 
             if (unsubscribeSnapshot) unsubscribeSnapshot();
@@ -221,24 +243,39 @@ here<!DOCTYPE html>
                     entradas.push({ id: doc.id, ...doc.data(), pendiente: doc.metadata.hasPendingWrites });
                 });
                 
-                entradas.sort((a, b) => new Date(b.fechaRaw || 0) - new Date(a.fechaRaw || 0) || b.timestamp - a.timestamp);
+                // 1. Ordenar por fechaRaw (más antiguo primero)
+                // Se invierte el orden de los elementos para lograr un conteo ascendente (1, 2, 3...)
+                // El registro más antiguo (fechaRaw o timestamp menor) va primero.
+                entradas.sort((a, b) => new Date(a.fechaRaw || 0) - new Date(b.fechaRaw || 0) || a.timestamp - b.timestamp);
 
                 if (entradas.length === 0) {
                     document.getElementById('mensajeVacio').classList.remove('hidden');
                 } else {
                     document.getElementById('mensajeVacio').classList.add('hidden');
                     let ultimaFecha = "";
+                    
+                    // 2. Inicializar el contador de la clase.
+                    let numeroClase = 1; 
+
                     entradas.forEach(dato => {
                         const mostrarFecha = dato.fechaFormateada !== ultimaFecha;
-                        renderizarFila(dato, mostrarFecha);
+                        renderizarFila(dato, mostrarFecha, numeroClase);
                         ultimaFecha = dato.fechaFormateada;
+                        numeroClase++; // Aumentar el contador para el siguiente registro (1, 2, 3,...)
                     });
                 }
                 lucide.createIcons();
+            }, (error) => {
+                // ESTE ES EL ERROR CRÍTICO DE CONEXIÓN ONLINE
+                if (navigator.onLine) {
+                    mostrarError("Error al conectar con Firebase: " + error.message + ". ¡Revise las reglas de seguridad de Firestore!");
+                } else {
+                    console.log("Error de conexión esperada (offline)");
+                }
             });
         }
 
-        function renderizarFila(dato, mostrarFecha) {
+        function renderizarFila(dato, mostrarFecha, numero) {
             const tbody = document.getElementById('cuerpoTabla');
             const tr = document.createElement('tr');
             const css = "border border-black p-2 text-sm align-top bg-white";
@@ -249,6 +286,7 @@ here<!DOCTYPE html>
             const iconoPendiente = dato.pendiente ? `<i data-lucide="cloud-upload" class="w-3 h-3 inline text-orange-500 ml-1" title="Pendiente de subir"></i>` : "";
 
             tr.innerHTML = `
+                <td class="${css} text-center font-bold text-gray-600 w-[50px]">${numero}</td>
                 <td class="${css} w-10 text-center"><input type="checkbox" class="w-4 h-4 text-[#548235]"></td>
                 <td class="${css} font-bold text-[#548235]">${contenidoFecha}</td>
                 <td class="${css} font-semibold">${dato.grados}</td>
@@ -273,7 +311,7 @@ here<!DOCTYPE html>
             tbody.appendChild(tr);
         }
         
-        // CORRECCIÓN: Usamos 'preparacionEdicion' en lugar de 'prepararEdicion' para evitar duplicidad.
+        // LÓGICA DE EDICIÓN Y CRUD (Sin cambios)
         window.preparacionEdicion = (dato) => {
             window.idEdicionActual = dato.id;
             const form = document.getElementById('seccionFormulario');
@@ -322,8 +360,9 @@ here<!DOCTYPE html>
             const obs = document.getElementById('inputObs').value;
 
             if (!fecha || !tema || grados === "Seleccionar...") {
-                // Reemplazamos alert() por un mensaje en consola, ya que el alert() no funciona bien en el iFrame.
-                console.error("Faltan datos obligatorios."); return; 
+                console.error("Faltan datos obligatorios."); 
+                mostrarError("Faltan datos obligatorios: Fecha, Tema y Grado(s).");
+                return; 
             }
 
             const [y, m, d] = fecha.split('-');
@@ -334,7 +373,7 @@ here<!DOCTYPE html>
                 fechaRaw: fecha, fechaFormateada: fechaVisual, grados, area, tema, obs, timestamp: Date.now()
             };
 
-            // Guardado Optimista (No bloqueamos UI esperando la red)
+            // Guardado Optimista 
             try {
                 if (window.idEdicionActual) {
                     await updateDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', window.idEdicionActual), datosGuardar);
@@ -344,22 +383,22 @@ here<!DOCTYPE html>
                     document.getElementById('inputTema').value = '';
                     document.getElementById('inputObs').value = '';
                 }
-                // Si estamos offline, Firebase lo encola silenciosamente.
             } catch (error) {
                 console.error(error);
-                console.error("Error al guardar: " + error.message);
+                mostrarError("Fallo al guardar: " + error.message);
             }
         };
 
         window.borrarDato = async (id) => {
-            // Reemplazamos el confirm() con una simulación de confirmación para evitar problemas en el iFrame.
             const confirmacion = true; 
-
             if (confirmacion) {
                 try { 
                     await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id)); 
                     if(window.idEdicionActual === id) cancelarEdicion();
-                } catch (e) { console.error("Error al borrar: " + e.message); }
+                } catch (e) { 
+                    console.error("Error al borrar: " + e.message); 
+                    mostrarError("Fallo al borrar: " + e.message);
+                }
             }
         };
 
@@ -391,8 +430,10 @@ here<!DOCTYPE html>
             actualizarAreas(hayPreescolar, hayOtros, vals.length === 6);
         }
 
-        const opPrimaria = `<optgroup label="Áreas"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="Proyectos"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><optgroup label="Otros"><option class="font-bold text-green-700">HORAS COMPLEMENTARIAS</option></optgroup>`;
-        const opPreescolar = `<optgroup label="Dimensiones"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="Proyectos"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup>`;
+        // --- DEFINICIÓN DE ÁREAS ACTUALIZADA (INSTITUCIONAL al final) ---
+        const opPrimaria = `<optgroup label="Áreas"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="Proyectos"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><optgroup label="Especiales"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
+        const opPreescolar = `<optgroup label="Dimensiones"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="Proyectos"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><optgroup label="Especiales"><option>INSTITUCIONAL</option></optgroup>`;
+        // -----------------------------------------------------------------
 
         function actualizarAreas(hayPre, hayOtros, esTodos) {
             const sel = document.getElementById('inputArea');
@@ -441,3 +482,4 @@ here<!DOCTYPE html>
     </script>
 </body>
 </html>
+

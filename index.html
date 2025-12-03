@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Color de la barra / splash en Android -->
+    <meta name="theme-color" content="#548235">
     <!-- Título optimizado para el celular -->
     <title>Diario Docente PWA</title> 
-    <!-- Enlace al archivo mágico 2: La Etiqueta (manifest.json) -->
-    <link rel="manifest" href="./manifest.json">
+    <!-- Manifest con ruta ABSOLUTA para GitHub Pages -->
+    <link rel="manifest" href="/Diariodeprocesos2026/manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -760,8 +762,8 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Enlace al archivo mágico 3: El Memorizador (sw.js)
-                navigator.serviceWorker.register('./sw.js')
+                // Ruta ABSOLUTA para que cubra /Diariodeprocesos2026/
+                navigator.serviceWorker.register('/Diariodeprocesos2026/sw.js')
                     .then(registration => {
                         console.log('ServiceWorker registrado con éxito para PWA:', registration.scope);
                     })

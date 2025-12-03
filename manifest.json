@@ -1,3 +1,13 @@
+{
+  "name": "Diario de Campo Docente",
+  "short_name": "DiarioDocente",
+  "description": "Herramienta PWA para el registro de actividades pedagógicas.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f4f6",
+  "theme_color": "#548235",
   "icons": [
     {
       "src": "./images/icon-192x192.png",
@@ -10,4 +20,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
+  ]
+}

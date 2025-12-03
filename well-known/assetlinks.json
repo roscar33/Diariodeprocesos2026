@@ -1,1 +1,11 @@
-
+    [{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.roscar33.twa", 
+        "sha256_cert_fingerprints": [
+          "87:C2:58:A2:51:AD:0E:56:DF:6C:C5:B0:2F:D1:71:C5:06:BA:3B:B8:D1:56:39:62:AF:B9:55:08:B1:5F:BD:71"
+        ]
+      }
+    }]
+    

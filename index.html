@@ -25,6 +25,9 @@
             .no-print { display: none !important; } 
             body { background-color: white; -webkit-print-color-adjust: exact; } 
             .print-container { box-shadow: none; border: none; width: 100%; max-width: 100%; margin: 0; padding: 0; } 
+            /* Forzar visualización del encabezado PDF al imprimir con navegador nativo */
+            #headerWeb { display: none !important; }
+            #headerPDF { display: flex !important; }
         }
         /* Estilo para resaltar el último registro encontrado */
         .highlight-row { 
@@ -43,18 +46,31 @@
 
     <div id="contenedorExportar" class="print-container bg-white w-full max-w-6xl shadow-xl rounded-lg overflow-hidden border border-gray-200 relative">
         
-        <!-- Indicador de Estado -->
-        <div class="absolute top-4 right-4 text-xs font-bold text-gray-500 no-print flex items-center gap-1 bg-gray-100 px-2 py-1 rounded cursor-pointer border border-gray-300 z-10" onclick="location.reload()">
-            <span class="w-2 h-2 rounded-full bg-gray-400" id="statusDot"></span>
-            <span id="statusText">Iniciando...</span>
+        <!-- Indicador de Estado MINIMALISTA (Solo punto) -->
+        <div class="absolute top-4 right-4 no-print z-10 cursor-pointer" title="Estado de conexión (Clic para recargar)" onclick="location.reload()">
+            <div id="statusDot" class="w-4 h-4 rounded-full bg-gray-300 shadow-md border-2 border-white transition-colors duration-300"></div>
         </div>
 
-        <header class="bg-[#548235] text-white p-6 text-center print:bg-white print:text-black">
+        <!-- 1. ENCABEZADO WEB (Visible en la App, Oculto en PDF) -->
+        <header id="headerWeb" class="bg-[#548235] text-white p-6 text-center">
             <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wide">Diario de Campo Docente</h1>
-            <p class="text-sm opacity-90 mt-1 no-print">Usuario: ******** (Modo Offline Activado)</p>
+            <!-- Eliminado texto de Usuario y Offline -->
+        </header>
+
+        <!-- 2. ENCABEZADO PDF (Oculto en la App, Visible en PDF) -->
+        <!-- Fondo verde limón (#92d050) -->
+        <header id="headerPDF" class="hidden bg-[#92d050] text-black p-4 items-center gap-6 border-b-2 border-[#548235]">
+            <div class="flex-shrink-0">
+                <img src="escudo.png" alt="Escudo" class="h-24 w-auto object-contain">
+            </div>
+            <div class="flex-grow">
+                <h1 class="text-xl font-bold uppercase leading-tight">I.E DE MARÍA, SEDE RURAL SANTA JUANA.</h1>
+                <h2 class="text-lg font-bold uppercase text-white drop-shadow-md mt-1" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">DIARIO DE PROCESOS 2026.</h2>
+                <p class="text-base font-semibold mt-1">DOCENTE: Oscar Evelio Barrientos Henao.</p>
+            </div>
         </header>
         
-        <!-- CAJA DE ERRORES (Nueva para diagnóstico) -->
+        <!-- CAJA DE ERRORES -->
         <div id="cajaError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mx-4 mt-4 hidden">
             <strong class="font-bold">Error de Sincronización:</strong>
             <span class="block sm:inline" id="mensajeError"></span>
@@ -62,8 +78,6 @@
                 <i data-lucide="x" class="w-5 h-5 fill-current"></i>
             </span>
         </div>
-        <!-- FIN CAJA DE ERRORES -->
-
 
         <!-- FORMULARIO DE REGISTRO (ARRIBA) -->
         <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print transition-colors duration-300">
@@ -78,7 +92,7 @@
                     </div>
                 </div>
 
-                <!-- Grado (Reutilizado del original) -->
+                <!-- Grado -->
                 <div class="flex flex-col lg:col-span-2 relative">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado(s)</label>
                     <button type="button" onclick="toggleDropdown('dropdownGrados', 'btnGrados')" id="btnGrados" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center focus:ring-2 focus:ring-[#548235]">
@@ -135,7 +149,7 @@
                 <i data-lucide="search" class="w-5 h-5"></i> Búsqueda Rápida
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                <!-- Fila 1: Grado para Búsqueda -->
+                <!-- Filtros -->
                 <div class="flex flex-col md:col-span-3 relative">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado (Filtro)</label>
                     <select id="filtroGrado" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm focus:ring-2 focus:ring-yellow-600" onchange="actualizarAreasFiltro(); filtrarTabla()">
@@ -149,22 +163,18 @@
                         <option value="Todos">Todos</option>
                     </select>
                 </div>
-                
-                <!-- Fila 2: Área para Búsqueda -->
                 <div class="flex flex-col md:col-span-4">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área (Filtro)</label>
                     <select id="filtroArea" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm focus:ring-2 focus:ring-yellow-600" onchange="filtrarTabla()">
                         <option value="">-- Todas las Áreas --</option>
                     </select>
                 </div>
-
                 <div class="md:col-span-5 flex justify-end">
                      <button onclick="limpiarFiltros()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
                         <i data-lucide="filter-off" class="w-4 h-4"></i> Limpiar Filtros
                     </button>
                 </div>
             </div>
-
             <!-- RESULTADO DEL ÚLTIMO REGISTRO -->
             <div id="resultadoUltimoTema" class="mt-4 p-3 bg-yellow-100 rounded-lg border border-yellow-300 transition-opacity">
                 <p class="text-xs font-semibold text-yellow-700 uppercase">Último Tema Trabajado:</p>
@@ -172,20 +182,17 @@
                 <p id="detalleEncontrado" class="text-sm text-gray-600 mt-1"></p>
             </div>
         </section>
-        <!-- FIN SECCIÓN BÚSQUEDA -->
-
 
         <!-- Tabla -->
         <div class="p-4 md:p-6 overflow-x-auto">
             <table class="w-full border-collapse border border-black min-w-[900px]" id="tablaDiario">
                 <thead>
                     <tr class="bg-gray-50 print:bg-transparent">
-                        <!-- Ajuste de Anchos: No. (Fijo), Fecha (Fijo), Grado (Fijo), Área (Fijo), Tema (Foco), Obs (Flexible), Acciones (Fijo) -->
                         <th class="border border-black p-2 w-10 text-center bg-white text-sm font-bold uppercase w-[50px]">No.</th>
-                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-28 bg-white">Fecha</th>
+                        <!-- Ancho ajustado para "Jueves 11 de diciembre" -->
+                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-56 bg-white">Fecha</th>
                         <th class="border border-black p-2 text-sm font-bold uppercase text-left w-24 bg-white">Grado</th>
                         <th class="border border-black p-2 text-sm font-bold uppercase text-left w-40 bg-white">Área</th>
-                        <!-- Aumentado el ancho a 350px para dar más espacio al Tema -->
                         <th class="border border-black p-2 text-sm font-bold uppercase text-left w-[350px] bg-white">Tema y/o Actividad</th>
                         <th class="border border-black p-2 text-sm font-bold uppercase text-left bg-white">Observaciones</th>
                         <th class="border border-black p-2 text-sm font-bold uppercase text-center w-24 bg-white no-print">Acciones</th>
@@ -213,7 +220,7 @@
         </footer>
     </div>
     
-    <!-- Custom Confirmation Modal (Reemplazo de confirm()) -->
+    <!-- Confirm Modal -->
     <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 no-print">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100">
             <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2" id="confirmTitle">
@@ -226,7 +233,6 @@
             </div>
         </div>
     </div>
-    <!-- Fin Modal -->
 
     <!-- Scripts de Firebase -->
     <script type="module">
@@ -234,21 +240,17 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
         
-        // --- VARIABLES GLOBALES ---
-        let TODOS_LOS_REGISTROS = []; // Almacenará todos los datos de Firestore
-        let globalConfirmCallback = null; // Para el modal de confirmación
+        let TODOS_LOS_REGISTROS = [];
+        let globalConfirmCallback = null;
         
-        // --- FUNCIÓN DE DIAGNÓSTICO DE ERRORES ---
         function mostrarError(mensaje) {
             document.getElementById('cajaError').classList.remove('hidden');
             document.getElementById('mensajeError').textContent = mensaje;
-            // Ocultar después de 8 segundos
             setTimeout(() => {
                 document.getElementById('cajaError').classList.add('hidden');
             }, 8000); 
         }
 
-        // --- LÓGICA DEL MODAL DE CONFIRMACIÓN ---
         function showConfirmModal(title, message, callback) {
             document.getElementById('confirmTitle').innerHTML = `<i data-lucide="alert-triangle" class="w-6 h-6 text-red-500"></i> ${title}`;
             document.getElementById('confirmMessage').textContent = message;
@@ -269,10 +271,7 @@
             }
             globalConfirmCallback = null;
         };
-        // --- FIN LÓGICA DEL MODAL DE CONFIRMACIÓN ---
 
-
-        // CREDENCIALES
         const firebaseConfig = {
             apiKey: "AIzaSyB2MJ-jdwQeT6sOfZ21tCrFYzGiuTNOAJ8",
             authDomain: "diariodeprocesos-6f78d.firebaseapp.com",
@@ -286,97 +285,61 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        // Esta CLAVE PERSONAL se usa como una "carpeta" única en la base de datos para este usuario.
         const CLAVE_PERSONAL = "Gusanito43@"; 
         let unsubscribeSnapshot = null;
         window.idEdicionActual = null; 
 
-        // 1. HABILITAR PERSISTENCIA OFFLINE (Firestore)
-        enableIndexedDbPersistence(db).catch((err) => {
-            if (err.code == 'failed-precondition') {
-                console.log('Persistencia fallida: Múltiples pestañas abiertas.');
-            } else if (err.code == 'unimplemented') {
-                console.log('El navegador no soporta persistencia offline.');
-            }
-        });
+        enableIndexedDbPersistence(db).catch((err) => { console.log('Persistencia:', err.code); });
 
-        // 2. MONITOREO DE CONEXIÓN (Para UI)
+        // FUNCIÓN DE ESTADO DE RED MINIMALISTA (Solo cambia color del punto)
         function actualizarEstadoRed() {
             const dot = document.getElementById('statusDot');
-            const txt = document.getElementById('statusText');
             if (navigator.onLine) {
-                dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
-                txt.textContent = "En Línea (Sincronizado)";
-                txt.className = "text-green-600 font-bold";
+                dot.className = "w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white transition-colors duration-300";
             } else {
-                dot.className = "w-2 h-2 rounded-full bg-orange-500";
-                txt.textContent = "Sin Conexión (Guardando local)";
-                txt.className = "text-orange-600 font-bold";
+                dot.className = "w-4 h-4 rounded-full bg-orange-500 shadow-md border-2 border-white transition-colors duration-300";
             }
         }
         window.addEventListener('online', actualizarEstadoRed);
         window.addEventListener('offline', actualizarEstadoRed);
-        actualizarEstadoRed(); // Iniciar
+        actualizarEstadoRed(); 
 
-        // 3. AUTENTICACIÓN SILENCIOSA
-        signInAnonymously(auth).catch((error) => {
-             mostrarError("Fallo en la Autenticación: " + error.code);
-        });
+        signInAnonymously(auth).catch((error) => mostrarError("Fallo Auth: " + error.code));
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                console.log("Usuario autenticado (puede ser offline)");
                 lucide.createIcons();
                 cargarDatosPersonales();
             }
         });
 
-        // 4. CARGAR DATOS (Funciona Offline gracias a la persistencia)
         function cargarDatosPersonales() {
             const loading = document.getElementById('loadingData');
             loading.classList.remove('hidden');
             loading.style.display = 'block';
 
-            // Ruta de la colección: diarios_docentes/{CLAVE_PERSONAL}/entradas
             const q = query(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'));
 
             if (unsubscribeSnapshot) unsubscribeSnapshot();
 
             unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
                 loading.style.display = 'none';
-                
                 TODOS_LOS_REGISTROS = [];
                 snapshot.forEach(doc => {
                     TODOS_LOS_REGISTROS.push({ id: doc.id, ...doc.data(), pendiente: doc.metadata.hasPendingWrites });
                 });
-                
-                // Mostrar todos los datos inicialmente
                 renderizarTabla(TODOS_LOS_REGISTROS);
                 lucide.createIcons();
-                
-                // Aplicar el filtro si ya hay uno seleccionado al cargar la página
                 filtrarTabla();
-
             }, (error) => {
-                // ESTE ES EL ERROR CRÍTICO DE CONEXIÓN ONLINE
-                if (navigator.onLine) {
-                    mostrarError("Error al conectar con Firebase: " + error.message + ". ¡Revise las reglas de seguridad de Firestore!");
-                } else {
-                    console.log("Error de conexión esperada (offline)");
-                }
+                if (navigator.onLine) mostrarError("Error Firebase: " + error.message);
             });
         }
 
-        /**
-         * Renderiza la tabla con los datos proporcionados y aplica la lógica de resaltado.
-         * @param {Array} datos Los datos a renderizar.
-         * @param {string} highlightId El ID del registro a resaltar.
-         */
         function renderizarTabla(datos, highlightId = null) {
             const tbody = document.getElementById('cuerpoTabla');
             tbody.innerHTML = '';
             
-            // 1. Ordenar por fechaRaw (más antiguo primero) y luego por timestamp
             datos.sort((a, b) => new Date(a.fechaRaw || 0) - new Date(b.fechaRaw || 0) || a.timestamp - b.timestamp);
 
             document.getElementById('mensajeVacio').classList.add('hidden');
@@ -402,66 +365,50 @@
             lucide.createIcons();
         }
 
-
         function renderizarFila(dato, mostrarFecha, numero, tbody, highlightId) {
             const tr = document.createElement('tr');
             const css = "border border-black p-2 text-sm align-top bg-white";
             const contenidoFecha = mostrarFecha ? dato.fechaFormateada : "";
-            
-            // Indicador visual si está pendiente de subir
             const estiloPendiente = dato.pendiente ? "opacity-50 italic" : "";
-            const iconoPendiente = dato.pendiente ? `<i data-lucide="cloud-upload" class="w-3 h-3 inline text-orange-500 ml-1" title="Pendiente de subir"></i>` : "";
+            const iconoPendiente = dato.pendiente ? `<i data-lucide="cloud-upload" class="w-3 h-3 inline text-orange-500 ml-1"></i>` : "";
             const highlightClass = dato.id === highlightId ? 'highlight-row' : '';
 
             tr.className = highlightClass;
-            tr.id = `row-${dato.id}`; // Añadir ID para poder saltar
+            tr.id = `row-${dato.id}`;
             
             tr.innerHTML = `
                 <td class="${css} text-center font-bold text-gray-600 w-[50px]">${numero}</td>
-                <td class="${css} font-bold text-[#548235]">${contenidoFecha}</td>
+                <td class="${css} font-bold text-[#548235] capitalize">${contenidoFecha}</td>
                 <td class="${css} font-semibold">${dato.grados}</td>
                 <td class="${css} uppercase text-xs font-semibold">${dato.area}</td>
                 <td class="${css} ${estiloPendiente}">${dato.tema} ${iconoPendiente}</td>
                 <td class="${css} ${estiloPendiente}">${dato.obs}</td>
                 <td class="${css} text-center no-print border-none flex gap-1 justify-center">
-                    <button class="btn-editar text-blue-600 hover:bg-blue-100 p-2 rounded" title="Editar">
-                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                    </button>
-                    <button class="btn-borrar text-red-500 hover:bg-red-100 p-2 rounded" title="Borrar">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>
+                    <button class="btn-editar text-blue-600 hover:bg-blue-100 p-2 rounded" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                    <button class="btn-borrar text-red-500 hover:bg-red-100 p-2 rounded" title="Borrar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </td>
             `;
             
             tr.querySelector('.btn-borrar').onclick = () => borrarDato(dato.id);
-            tr.querySelector('.btn-editar').onclick = () => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                preparacionEdicion(dato); 
-            };
+            tr.querySelector('.btn-editar').onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); preparacionEdicion(dato); };
             tbody.appendChild(tr);
 
-            // Hacer scroll si es el registro resaltado
             if(highlightId === dato.id) {
                  setTimeout(() => {
                     const row = document.getElementById(`row-${highlightId}`);
-                    if (row) {
-                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
+                    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 100);
             }
         }
         
-        // LÓGICA DE FILTRADO
         window.filtrarTabla = () => {
             const filtroGrado = document.getElementById('filtroGrado').value;
             const filtroArea = document.getElementById('filtroArea').value;
             let ultimoRegistro = null;
 
-            // Limpiar resaltado anterior
             document.querySelectorAll('.highlight-row').forEach(row => row.classList.remove('highlight-row'));
 
             if (!filtroGrado && !filtroArea) {
-                // Si no hay filtros, mostrar todos y salir
                 renderizarTabla(TODOS_LOS_REGISTROS);
                 document.getElementById('temaEncontrado').textContent = 'Seleccione un Grado y Área para buscar...';
                 document.getElementById('detalleEncontrado').textContent = '';
@@ -474,32 +421,29 @@
                 return coincideGrado && coincideArea;
             });
             
-            // 2. Encontrar el último registro (el más reciente)
             datosFiltrados.sort((a, b) => b.timestamp - a.timestamp);
             
             if (datosFiltrados.length > 0) {
                 ultimoRegistro = datosFiltrados[0];
                 document.getElementById('temaEncontrado').textContent = ultimoRegistro.tema;
                 document.getElementById('detalleEncontrado').textContent = `Registro del ${ultimoRegistro.fechaFormateada} | Obs: ${ultimoRegistro.obs.substring(0, 50)}${ultimoRegistro.obs.length > 50 ? '...' : ''}`;
-                // Volver a ordenar ASCENDENTEMENTE para la visualización de la tabla (No. ascendente)
                 datosFiltrados.sort((a, b) => new Date(a.fechaRaw || 0) - new Date(b.fechaRaw || 0) || a.timestamp - b.timestamp);
-                renderizarTabla(datosFiltrados, ultimoRegistro.id); // Renderizar con ID a resaltar
+                renderizarTabla(datosFiltrados, ultimoRegistro.id);
             } else {
-                document.getElementById('temaEncontrado').textContent = 'No se encontró ningún registro con estos criterios.';
+                document.getElementById('temaEncontrado').textContent = 'No se encontró ningún registro.';
                 document.getElementById('detalleEncontrado').textContent = 'Intente con otro filtro.';
-                renderizarTabla([]); // Mostrar tabla vacía
+                renderizarTabla([]); 
             }
         };
 
         window.limpiarFiltros = () => {
             document.getElementById('filtroGrado').value = "";
-            actualizarAreasFiltro(); // Restablece el filtro de área
+            actualizarAreasFiltro(); 
             document.getElementById('temaEncontrado').textContent = 'Seleccione un Grado y Área para buscar...';
             document.getElementById('detalleEncontrado').textContent = '';
             filtrarTabla();
         }
 
-        // --- LÓGICA DE EDICIÓN Y CRUD
         window.preparacionEdicion = (dato) => {
             window.idEdicionActual = dato.id;
             const form = document.getElementById('seccionFormulario');
@@ -516,16 +460,13 @@
             const esPrimaria = dato.grados.includes('1°') || dato.grados.includes('2°') || dato.grados.includes('3°') || dato.grados.includes('4°') || dato.grados.includes('5°') || dato.grados.includes('Todos');
             
             actualizarAreas(esPreescolar, esPrimaria, dato.grados === 'Todos'); 
-            // Espera a que las opciones se carguen y luego asigna el valor.
             setTimeout(() => { document.getElementById('inputArea').value = dato.area; }, 50);
 
             document.getElementById('inputTema').value = dato.tema;
             document.getElementById('inputObs').value = dato.obs;
 
             const checkboxes = document.querySelectorAll('.grado-checkbox');
-            checkboxes.forEach(cb => {
-                cb.checked = dato.grados.includes(cb.value) || dato.grados === "Todos";
-            });
+            checkboxes.forEach(cb => { cb.checked = dato.grados.includes(cb.value) || dato.grados === "Todos"; });
             if (dato.grados === "Todos") document.querySelector('input[value="Todos"]').checked = true;
             actualizarTextoGrados();
         };
@@ -551,26 +492,26 @@
             const placeholderArea = document.querySelector('#inputArea option[disabled]').value;
 
             if (!fecha || !tema || grados === "Seleccionar..." || grados === "Todos" || area === placeholderArea) {
-                // Validación mejorada
-                if (grados === "Seleccionar...") {
-                    mostrarError("Faltan datos obligatorios: Seleccione al menos un Grado.");
-                } else if (!fecha || !tema) {
-                    mostrarError("Faltan datos obligatorios: Fecha y Tema.");
-                } else if (area === placeholderArea) {
-                    mostrarError("Faltan datos obligatorios: Seleccione un Área/Asignatura.");
-                }
+                if (grados === "Seleccionar...") mostrarError("Falta: Grado.");
+                else if (!fecha || !tema) mostrarError("Falta: Fecha y Tema.");
+                else if (area === placeholderArea) mostrarError("Falta: Área.");
                 return; 
             }
 
-            const [y, m, d] = fecha.split('-');
-            const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-            const fechaVisual = `${d}.${meses[parseInt(m)-1]}.${y}`;
+            // --- CORRECCIÓN FECHA: Día + # + "de" + Mes ---
+            const fechaObj = new Date(fecha + 'T00:00:00'); 
+            const opcionesFecha = { weekday: 'long', day: 'numeric', month: 'long' }; 
+            let fechaTexto = fechaObj.toLocaleDateString('es-ES', opcionesFecha);
+            // "jueves, 11 de diciembre" -> "Jueves 11 de diciembre"
+            fechaTexto = fechaTexto.replace(',', ''); 
+            fechaTexto = fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1);
+            
+            const fechaVisual = fechaTexto;
 
             const datosGuardar = {
                 fechaRaw: fecha, fechaFormateada: fechaVisual, grados, area, tema, obs, timestamp: Date.now()
             };
 
-            // Guardado Optimista 
             try {
                 if (window.idEdicionActual) {
                     await updateDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', window.idEdicionActual), datosGuardar);
@@ -581,53 +522,37 @@
                     document.getElementById('inputObs').value = '';
                 }
             } catch (error) {
-                console.error(error);
                 mostrarError("Fallo al guardar: " + error.message);
             }
         };
 
         window.borrarDato = async (id) => {
-             showConfirmModal(
-                "Confirmar Eliminación", 
-                "¿Estás seguro de que quieres borrar este registro de forma permanente?",
-                async (confirmed) => {
-                    if (confirmed) {
-                        try { 
-                            await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id)); 
-                            if(window.idEdicionActual === id) cancelarEdicion();
-                        } catch (e) { 
-                            console.error("Error al borrar: " + e.message); 
-                            mostrarError("Fallo al borrar: " + e.message);
-                        }
-                    }
+             showConfirmModal("Confirmar Eliminación", "¿Estás seguro?", async (confirmed) => {
+                if (confirmed) {
+                    try { 
+                        await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id)); 
+                        if(window.idEdicionActual === id) cancelarEdicion();
+                    } catch (e) { mostrarError("Fallo al borrar: " + e.message); }
                 }
-            );
+            });
         };
 
-        // Iniciar
         document.getElementById('inputFecha').valueAsDate = new Date();
         lucide.createIcons();
     </script>
 
     <!-- UI Scripts -->
     <script>
-        // Funciones para el DROPDOWN de Grados (Formulario de Registro)
         function toggleDropdown(id, buttonId) { 
-            document.querySelectorAll('.dropdown-content').forEach(d => {
-                if(d.id !== id) d.classList.remove('show');
-            });
+            document.querySelectorAll('.dropdown-content').forEach(d => { if(d.id !== id) d.classList.remove('show'); });
             document.getElementById(id).classList.toggle("show"); 
         }
 
         window.onclick = function(e) { 
-            // Cerrar dropdown de grados si se hace clic fuera
             if (!e.target.closest('#btnGrados') && !e.target.closest('#dropdownGrados')) { 
                 document.getElementById('dropdownGrados').classList.remove('show');
             } 
-            // Prevenir cierre de modal al hacer clic en él
-            if (e.target.closest('#confirmModal') && e.target.id !== 'confirmCancel' && e.target.id !== 'confirmAction') {
-                 e.preventDefault(); 
-            }
+            if (e.target.closest('#confirmModal') && e.target.id !== 'confirmCancel' && e.target.id !== 'confirmAction') { e.preventDefault(); }
         }
         
         function seleccionarTodos(source) {
@@ -645,86 +570,52 @@
             const hayPrimaria = vals.some(v => v !== 'Preescolar' && v !== 'Todos');
 
             if (vals.includes('Todos') && vals.length > 1) {
-                // Si "Todos" está marcado, desmarcar los demás
-                document.querySelectorAll('.grado-checkbox').forEach(cb => {
-                    if (cb.value !== 'Todos') cb.checked = false;
-                });
+                document.querySelectorAll('.grado-checkbox').forEach(cb => { if (cb.value !== 'Todos') cb.checked = false; });
                 btn.textContent = "Todos";
             } else if (vals.length === 6 && !vals.includes('Todos')) { 
-                // Si todos los individuales están marcados, marcar "Todos"
                 document.querySelector('input[value="Todos"]').checked = true;
                 btn.textContent = "Todos";
             } else if (vals.length === 0) { 
                 btn.textContent = "Seleccionar..."; 
                 if(allCb) allCb.checked = false;
-            } else if (vals.includes('Todos')) {
-                 btn.textContent = "Todos"; 
-            } else { 
+            } else if (vals.includes('Todos')) { btn.textContent = "Todos"; } 
+            else { 
                 btn.textContent = vals.join(", "); 
                 if(allCb) allCb.checked = false;
             }
-            
             actualizarAreas(hayPreescolar, hayPrimaria, vals.includes('Todos'));
         }
 
-        // --- DEFINICIÓN DE ÁREAS (FINAL Y OPTIMIZADA) ---
         const opPrimaria = `<optgroup label="ÁREAS"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
         const opPreescolar = `<optgroup label="DIMENSIONES"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option></optgroup>`;
-        // -----------------------------------------------------------------
 
-        // Actualiza el selector de Áreas del Formulario de REGISTRO
         function actualizarAreas(hayPre, hayOtros, esTodos) {
             const sel = document.getElementById('inputArea');
             const valorActual = sel.value; 
-            
-            // Placeholder disabled (título no seleccionable)
             let opciones = '<option value="" selected disabled>-- SELECCIONAR ÁREA --</option>';
-            
-            // Lógica: Si solo hay preescolar marcado, usar opciones de preescolar. De lo contrario, primaria.
             const usarPreescolar = hayPre && !hayOtros && !esTodos;
             opciones += usarPreescolar ? opPreescolar : opPrimaria;
-            
             sel.innerHTML = opciones;
-            
-            // Intentar reasignar el valor guardado
             const existe = Array.from(sel.options).some(op => op.value === valorActual);
             if(existe) sel.value = valorActual;
         }
-        actualizarAreas(false, true, false); // Inicializar con opciones de primaria
+        actualizarAreas(false, true, false); 
         
-        // Actualiza el selector de Áreas del Filtro de BÚSQUEDA
         window.actualizarAreasFiltro = () => {
             const selFiltroGrado = document.getElementById('filtroGrado');
             const selFiltroArea = document.getElementById('filtroArea');
             const valorActual = selFiltroArea.value; 
-            
             const gradoSeleccionado = selFiltroGrado.value;
             const esPreescolar = gradoSeleccionado === 'Preescolar';
-            
             let opciones = '<option value="">-- Todas las Áreas --</option>';
-
-            if (esPreescolar) {
-                // Preescolar
-                opciones += opPreescolar;
-            } else if (gradoSeleccionado && gradoSeleccionado !== 'Todos') {
-                // Primaria específica
-                opciones += opPrimaria;
-            } else {
-                 // Si es "Todos" o no se selecciona, combinamos las opciones de Primaria y las Dimensiones de Preescolar
-                 opciones += opPrimaria;
-                 // Agregar las dimensiones de Preescolar (solo el primer optgroup)
-                 opciones += opPreescolar.split('</optgroup>')[0] + '</optgroup>';
-            }
-
+            if (esPreescolar) opciones += opPreescolar;
+            else if (gradoSeleccionado && gradoSeleccionado !== 'Todos') opciones += opPrimaria;
+            else { opciones += opPrimaria; opciones += opPreescolar.split('</optgroup>')[0] + '</optgroup>'; }
             selFiltroArea.innerHTML = opciones;
-            
-            // Intentar mantener el valor si existía
             const existe = Array.from(selFiltroArea.options).some(op => op.value === valorActual);
             if(existe) selFiltroArea.value = valorActual;
-
-            filtrarTabla(); // Llama a filtrar inmediatamente después de actualizar las opciones de área
+            filtrarTabla(); 
         };
-
 
         function descargarPDF() {
             const elemento = document.getElementById('contenedorExportar');
@@ -737,39 +628,36 @@
             ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
             document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
             
-            // Ocultar mensajes de tabla vacía/filtro vacio antes de exportar
+            // 1. OCULTAR ENCABEZADO WEB, MOSTRAR PDF
+            document.getElementById('headerWeb').classList.add('hidden');
+            document.getElementById('headerPDF').classList.remove('hidden');
+            document.getElementById('headerPDF').classList.add('flex'); // Asegurar flex
+
             document.getElementById('mensajeVacio').style.display = 'none';
             document.getElementById('mensajeFiltroVacio').style.display = 'none';
 
             const opt = { margin: 0.5, filename: 'Diario_Gusanito43.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } };
             html2pdf().set(opt).from(elemento).save().then(() => {
-                // Restaurar elementos ocultos
+                // 2. RESTAURAR VISIBILIDAD DE ENCABEZADOS
+                document.getElementById('headerWeb').classList.remove('hidden');
+                document.getElementById('headerPDF').classList.add('hidden');
+                document.getElementById('headerPDF').classList.remove('flex');
+
                 ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
                 document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
-                
-                // Restaurar mensajes de tabla (se manejan en la función renderizarTabla/filtrarTabla)
-                // Se llama a filtrarTabla para restaurar el estado visible de la tabla
                 filtrarTabla(); 
-
                 btn.innerHTML = txtOriginal;
                 btn.disabled = false;
                 lucide.createIcons();
             });
         }
     </script>
-    
-    <!-- REGISTRO DEL SERVICE WORKER (PWA) -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Ruta ABSOLUTA para que cubra /Diariodeprocesos2026/
                 navigator.serviceWorker.register('/Diariodeprocesos2026/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registrado con éxito para PWA:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.error('Fallo el registro del ServiceWorker:', error);
-                    });
+                    .then(registration => { console.log('ServiceWorker registrado:', registration.scope); })
+                    .catch(error => { console.error('Fallo el registro del ServiceWorker:', error); });
             });
         }
     </script>

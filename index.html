@@ -72,7 +72,7 @@
         
         <!-- CAJA DE ERRORES -->
         <div id="cajaError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mx-4 mt-4 hidden">
-            <strong class="font-bold">Error de Sincronización:</strong>
+            <strong class="font-bold">Aviso:</strong>
             <span class="block sm:inline" id="mensajeError"></span>
             <span onclick="document.getElementById('cajaError').classList.add('hidden')" class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer">
                 <i data-lucide="x" class="w-5 h-5 fill-current"></i>
@@ -485,17 +485,39 @@
 
         window.guardarEnNube = async () => {
             const fecha = document.getElementById('inputFecha').value;
-            const grados = document.getElementById('textoGradosSeleccionados').textContent;
+            let grados = document.getElementById('textoGradosSeleccionados').textContent;
             const area = document.getElementById('inputArea').value;
             const tema = document.getElementById('inputTema').value;
             const obs = document.getElementById('inputObs').value;
             const placeholderArea = document.querySelector('#inputArea option[disabled]').value;
 
-            if (!fecha || !tema || grados === "Seleccionar..." || grados === "Todos" || area === placeholderArea) {
-                if (grados === "Seleccionar...") mostrarError("Falta: Grado.");
-                else if (!fecha || !tema) mostrarError("Falta: Fecha y Tema.");
+            // --- LÓGICA DE VALIDACIÓN MODIFICADA ---
+            
+            // 1. Áreas de excepción: INSTITUCIONAL o ACTIVIDADES COMPLEMENTARIAS
+            // Se incluyen las variantes posibles
+            const areasExcepcion = ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS", "ACTIVIDADES COMPLEMENTARIAS"];
+            const esExcepcion = areasExcepcion.includes(area);
+
+            // 2. Validación de campos universales (Fecha, Tema, Área)
+            if (!fecha || !tema || area === placeholderArea) {
+                if (!fecha || !tema) mostrarError("Falta: Fecha y Tema.");
                 else if (area === placeholderArea) mostrarError("Falta: Área.");
                 return; 
+            }
+
+            // 3. Validación de Grado (SOLO si NO es excepción)
+            if (!esExcepcion) {
+                // Si NO es Institucional ni Complementarias, exigimos Grado
+                if (grados === "Seleccionar..." || grados.trim() === "") {
+                    mostrarError("Falta: Seleccionar el Grado.");
+                    return; 
+                }
+            } else {
+                // Si ES excepción y el usuario no seleccionó grado, guardamos como "No Aplica"
+                // para que no quede "Seleccionar..." en la base de datos
+                if (grados === "Seleccionar...") {
+                    grados = "No Aplica";
+                }
             }
 
             // --- CORRECCIÓN FECHA: Día + # + "de" + Mes ---
@@ -586,8 +608,10 @@
             actualizarAreas(hayPreescolar, hayPrimaria, vals.includes('Todos'));
         }
 
-        const opPrimaria = `<optgroup label="ÁREAS"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
-        const opPreescolar = `<optgroup label="DIMENSIONES"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option></optgroup>`;
+        // SE AGREGO JORNADA UNICA AQUI
+        const opPrimaria = `<optgroup label="ÁREAS"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
+        // SE AGREGO JORNADA UNICA AQUI TAMBIEN
+        const opPreescolar = `<optgroup label="DIMENSIONES"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option></optgroup>`;
 
         function actualizarAreas(hayPre, hayOtros, esTodos) {
             const sel = document.getElementById('inputArea');
@@ -663,3 +687,6 @@
     </script>
 </body>
 </html>
+
+
+

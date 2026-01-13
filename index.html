@@ -680,13 +680,14 @@
         }
     </script>
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/Diariodeprocesos2026/sw.js')
-                    .then(registration => { console.log('ServiceWorker registrado:', registration.scope); })
-                    .catch(error => { console.error('Fallo el registro del ServiceWorker:', error); });
-            });
-        }
-    </script>
+        <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    for (let reg of regs) {
+      reg.unregister();
+    }
+  });
+}
+</script>
 </body>
 </html>

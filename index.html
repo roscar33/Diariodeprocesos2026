@@ -3,11 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Color de la barra / splash en Android -->
     <meta name="theme-color" content="#548235">
-    <!-- Título optimizado para el celular -->
     <title>Diario Docente PWA</title> 
-    <!-- Manifest con ruta ABSOLUTA para GitHub Pages -->
     <link rel="manifest" href="/Diariodeprocesos2026/manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -15,127 +12,165 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
         .dropdown-content { display: none; position: absolute; background-color: white; min-width: 100%; box-shadow: 0 8px 16px rgba(0,0,0,0.2); z-index: 50; border: 1px solid #e5e7eb; border-radius: 0.5rem; max-height: 250px; overflow-y: auto; }
         .dropdown-content.show { display: block; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #548235; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- CLASES CRÍTICAS PARA PDF/IMPRESIÓN --- */
         
+        /* Reglas de ruptura de página para que fluya suavemente */
+        tr { 
+            page-break-inside: avoid !important; /* No partir una fila a la mitad */
+            page-break-after: auto !important;
+        }
+        
+        table {
+            page-break-inside: auto !important; /* Permitir que la tabla se divida entre páginas */
+        }
+
+        .header-verde-tabla {
+            background-color: #548235 !important;
+            color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
         @media print { 
-            @page { size: landscape; margin: 0.5cm; }
+            @page { size: landscape; margin: 0.3cm; }
             .no-print { display: none !important; } 
             body { background-color: white; -webkit-print-color-adjust: exact; } 
-            .print-container { box-shadow: none; border: none; width: 100%; max-width: 100%; margin: 0; padding: 0; } 
-            /* Forzar visualización del encabezado PDF al imprimir con navegador nativo */
             #headerWeb { display: none !important; }
             #headerPDF { display: flex !important; }
+            #tablaDiario { width: 100% !important; }
+            .header-pdf-bg { background-color: #92d050 !important; -webkit-print-color-adjust: exact; }
+            .header-tabla-bg { background-color: #548235 !important; color: white !important; -webkit-print-color-adjust: exact; }
         }
-        /* Estilo para resaltar el último registro encontrado */
+
         .highlight-row { 
             background-color: #fefcbf !important; 
             border: 2px solid #fbbf24 !important; 
-            box-shadow: 0 1px 3px rgba(251, 191, 36, 0.4);
             animation: highlightFade 3s ease-out forwards;
         }
         @keyframes highlightFade {
             0% { background-color: #fefcbf; }
-            100% { background-color: #fff; } /* Vuelve a blanco o al color base */
+            100% { background-color: #fff; }
         }
+
+        /* --- MODO PDF (JS) --- */
+        .pdf-mode-active {
+            width: 1024px !important; 
+            min-width: 1024px !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+        }
+
+        .pdf-mode-active #contenedorTablaWrapper {
+            overflow: visible !important; 
+        }
+
+        .pdf-mode-active table {
+            width: 100% !important;
+            table-layout: fixed !important; 
+        }
+        
+        .pdf-mode-active td, .pdf-mode-active th {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            font-size: 11px !important; 
+        }
+
+        /* Clases específicas para inyectar color al generar PDF */
+        .pdf-header-color {
+            background-color: #92d050 !important; /* Verde Limón Original */
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .pdf-table-header-color {
+            background-color: #548235 !important; /* Verde Oscuro Original */
+            color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
     </style>
 </head>
 <body class="p-2 md:p-8 min-h-screen flex flex-col items-center">
 
-    <div id="contenedorExportar" class="print-container bg-white w-full max-w-6xl shadow-xl rounded-lg overflow-hidden border border-gray-200 relative">
+    <div id="contenedorExportar" class="bg-white w-full max-w-6xl shadow-xl rounded-lg overflow-hidden border border-gray-200 relative transition-all">
         
-        <!-- Indicador de Estado MINIMALISTA (Solo punto) -->
-        <div class="absolute top-4 right-4 no-print z-10 cursor-pointer" title="Estado de conexión (Clic para recargar)" onclick="location.reload()">
-            <div id="statusDot" class="w-4 h-4 rounded-full bg-gray-300 shadow-md border-2 border-white transition-colors duration-300"></div>
+        <div class="absolute top-4 right-4 no-print z-10 cursor-pointer" onclick="location.reload()">
+            <div id="statusDot" class="w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white"></div>
         </div>
 
-        <!-- 1. ENCABEZADO WEB (Visible en la App, Oculto en PDF) -->
+        <!-- Header Web (App) -->
         <header id="headerWeb" class="bg-[#548235] text-white p-6 text-center">
             <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wide">Diario de Campo Docente</h1>
-            <!-- Eliminado texto de Usuario y Offline -->
         </header>
 
-        <!-- 2. ENCABEZADO PDF (Oculto en la App, Visible en PDF) -->
-        <!-- Fondo verde limón (#92d050) -->
-        <header id="headerPDF" class="hidden bg-[#92d050] text-black p-4 items-center gap-6 border-b-2 border-[#548235]">
-            <div class="flex-shrink-0">
-                <img src="escudo.png" alt="Escudo" class="h-24 w-auto object-contain">
+        <!-- Header PDF (RESTAURADO COLOR ORIGINAL) -->
+        <div id="headerPDF" class="hidden flex-row items-center gap-4 p-4 border-b-2 border-[#548235] w-full mb-0 pdf-header-color header-pdf-bg">
+            <div class="flex-shrink-0 w-24 h-24 flex items-center justify-center">
+                <img src="escudo.png" onerror="this.style.display='none'" alt="Escudo" class="w-full h-full object-contain">
             </div>
-            <div class="flex-grow">
-                <h1 class="text-xl font-bold uppercase leading-tight">I.E DE MARÍA, SEDE RURAL SANTA JUANA.</h1>
-                <h2 class="text-lg font-bold uppercase text-white drop-shadow-md mt-1" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">DIARIO DE PROCESOS 2026.</h2>
-                <p class="text-base font-semibold mt-1">DOCENTE: Oscar Evelio Barrientos Henao.</p>
+            <div class="flex-grow text-center">
+                <h1 class="text-lg font-bold uppercase text-black leading-tight">I.E DE MARÍA, SEDE RURAL SANTA JUANA.</h1>
+                <h2 class="text-base font-bold uppercase text-white drop-shadow-md mt-1" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">DIARIO DE PROCESOS 2026.</h2>
+                <div class="w-full border-t border-[#548235] mt-2 pt-1 text-left">
+                    <p class="text-sm font-bold text-black uppercase">DOCENTE: Oscar Evelio Barrientos Henao.</p>
+                </div>
             </div>
-        </header>
+        </div>
         
-        <!-- CAJA DE ERRORES -->
-        <div id="cajaError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mx-4 mt-4 hidden">
-            <strong class="font-bold">Aviso:</strong>
-            <span class="block sm:inline" id="mensajeError"></span>
-            <span onclick="document.getElementById('cajaError').classList.add('hidden')" class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer">
-                <i data-lucide="x" class="w-5 h-5 fill-current"></i>
-            </span>
+        <div id="cajaError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mx-4 mt-4 hidden no-print">
+            <strong class="font-bold">Aviso:</strong> <span id="mensajeError"></span>
+            <span onclick="document.getElementById('cajaError').classList.add('hidden')" class="absolute top-0 right-0 px-4 py-3 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></span>
         </div>
 
-        <!-- FORMULARIO DE REGISTRO (ARRIBA) -->
-        <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print transition-colors duration-300">
+        <!-- Formulario -->
+        <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print">
             <h2 class="text-lg font-bold text-[#548235] mb-4 border-b border-[#548235] pb-1">Nuevo Registro</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:col-cols-12 gap-4">
-                <!-- Fecha -->
                 <div class="flex flex-col lg:col-span-3">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1">Fecha</label>
-                    <div class="relative">
-                        <input type="date" id="inputFecha" class="w-full p-2 pl-10 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] focus:outline-none cursor-pointer uppercase">
-                        <i data-lucide="calendar" class="absolute left-3 top-2.5 w-4 h-4 text-gray-500 pointer-events-none"></i>
-                    </div>
+                    <input type="date" id="inputFecha" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase">
                 </div>
-
-                <!-- Grado -->
                 <div class="flex flex-col lg:col-span-2 relative">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado(s)</label>
-                    <button type="button" onclick="toggleDropdown('dropdownGrados', 'btnGrados')" id="btnGrados" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center focus:ring-2 focus:ring-[#548235]">
+                    <button type="button" onclick="toggleDropdown('dropdownGrados')" id="btnGrados" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center">
                         <span id="textoGradosSeleccionados" class="truncate text-sm">Seleccionar...</span>
                         <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500"></i>
                     </button>
                     <div id="dropdownGrados" class="dropdown-content p-2">
-                        <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer border-b border-gray-100 font-bold text-[#548235]">
-                            <input type="checkbox" value="Todos" onchange="seleccionarTodos(this)" class="rounded text-[#548235] focus:ring-[#548235]"> <span>Todos</span>
-                        </label>
+                        <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded border-b font-bold text-[#548235]"><input type="checkbox" value="Todos" onchange="seleccionarTodos(this)" class="rounded text-[#548235]"> <span>Todos</span></label>
                         <div id="listaCheckboxes">
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="1°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>1°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="2°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>2°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="3°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>3°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="4°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>4°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="5°" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span>5°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer border-t border-gray-100 mt-1"><input type="checkbox" value="Preescolar" class="grado-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoGrados()"><span class="font-semibold">Preescolar</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="1°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>1°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="2°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>2°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="3°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>3°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="4°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>4°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="5°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>5°</span></label>
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded border-t mt-1"><input type="checkbox" value="Preescolar" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span class="font-semibold">Preescolar</span></label>
                         </div>
                     </div>
                 </div>
-
-                <!-- Área -->
                 <div class="flex flex-col lg:col-span-7">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área / Asignatura</label>
-                    <select id="inputArea" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] focus:outline-none uppercase font-medium">
-                        <!-- Placeholder se añade en JS -->
-                    </select>
+                    <select id="inputArea" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase font-medium"></select>
                 </div>
-
-                <!-- Tema y Observaciones -->
                 <div class="flex flex-col lg:col-span-12">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1">Tema / Actividad</label>
-
-                    <!-- ✅ CAMBIO ÚNICO: INPUT -> TEXTAREA (para permitir Enter con salto de línea) -->
-                    <textarea id="inputTema" rows="2" placeholder="Describe la actividad..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] focus:outline-none"></textarea>
+                    <textarea id="inputTema" rows="2" placeholder="Describe la actividad..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none"></textarea>
                 </div>
-
                 <div class="flex flex-col lg:col-span-12">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1">Observaciones</label>
-                    <textarea id="inputObs" rows="2" placeholder="Notas..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] focus:outline-none"></textarea>
+                    <textarea id="inputObs" rows="2" placeholder="Notas..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none"></textarea>
                 </div>
             </div>
-
             <div class="flex gap-2 mt-4">
                 <button id="btnAgregar" onclick="guardarEnNube()" class="flex-1 bg-[#548235] hover:bg-[#43692a] text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
                     <i data-lucide="save" class="w-5 h-5"></i> <span id="btnText">Guardar</span>
@@ -146,59 +181,46 @@
             </div>
         </section>
         
-        <!-- SECCIÓN: BÚSQUEDA Y ÚLTIMO REGISTRO -->
+        <!-- Busqueda -->
         <section id="seccionBusqueda" class="p-4 md:p-6 bg-yellow-50 border-y border-yellow-200 no-print">
-            <h2 class="text-lg font-bold text-yellow-800 mb-3 flex items-center gap-2">
-                <i data-lucide="search" class="w-5 h-5"></i> Búsqueda Rápida
-            </h2>
+            <h2 class="text-lg font-bold text-yellow-800 mb-3 flex items-center gap-2"><i data-lucide="search" class="w-5 h-5"></i> Búsqueda Rápida</h2>
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                <!-- Filtros -->
-                <div class="flex flex-col md:col-span-3 relative">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado (Filtro)</label>
-                    <select id="filtroGrado" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm focus:ring-2 focus:ring-yellow-600" onchange="actualizarAreasFiltro(); filtrarTabla()">
-                        <option value="">-- Todos los Grados --</option>
-                        <option value="1°">1°</option>
-                        <option value="2°">2°</option>
-                        <option value="3°">3°</option>
-                        <option value="4°">4°</option>
-                        <option value="5°">5°</option>
-                        <option value="Preescolar">Preescolar</option>
-                        <option value="Todos">Todos</option>
+                <div class="flex flex-col md:col-span-3">
+                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado</label>
+                    <select id="filtroGrado" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm" onchange="actualizarAreasFiltro(); filtrarTabla()">
+                        <option value="">-- Todos --</option>
+                        <option value="1°">1°</option><option value="2°">2°</option><option value="3°">3°</option><option value="4°">4°</option><option value="5°">5°</option><option value="Preescolar">Preescolar</option><option value="Todos">Todos</option>
                     </select>
                 </div>
                 <div class="flex flex-col md:col-span-4">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área (Filtro)</label>
-                    <select id="filtroArea" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm focus:ring-2 focus:ring-yellow-600" onchange="filtrarTabla()">
-                        <option value="">-- Todas las Áreas --</option>
+                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área</label>
+                    <select id="filtroArea" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm" onchange="filtrarTabla()">
+                        <option value="">-- Todas --</option>
                     </select>
                 </div>
                 <div class="md:col-span-5 flex justify-end">
-                     <button onclick="limpiarFiltros()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
-                        <i data-lucide="filter-off" class="w-4 h-4"></i> Limpiar Filtros
-                    </button>
+                     <button onclick="limpiarFiltros()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center gap-2"><i data-lucide="filter-off" class="w-4 h-4"></i> Limpiar</button>
                 </div>
             </div>
-            <!-- RESULTADO DEL ÚLTIMO REGISTRO -->
-            <div id="resultadoUltimoTema" class="mt-4 p-3 bg-yellow-100 rounded-lg border border-yellow-300 transition-opacity">
+            <div id="resultadoUltimoTema" class="mt-4 p-3 bg-yellow-100 rounded-lg border border-yellow-300">
                 <p class="text-xs font-semibold text-yellow-700 uppercase">Último Tema Trabajado:</p>
-                <p id="temaEncontrado" class="text-gray-800 font-bold text-lg italic">Seleccione un Grado y Área para buscar...</p>
+                <p id="temaEncontrado" class="text-gray-800 font-bold text-lg italic">Seleccione un Grado y Área...</p>
                 <p id="detalleEncontrado" class="text-sm text-gray-600 mt-1"></p>
             </div>
         </section>
 
         <!-- Tabla -->
-        <div class="p-4 md:p-6 overflow-x-auto">
-            <table class="w-full border-collapse border border-black min-w-[900px]" id="tablaDiario">
+        <div class="p-4 md:p-6 overflow-x-auto" id="contenedorTablaWrapper">
+            <table class="w-full border-collapse border border-black" id="tablaDiario">
                 <thead>
-                    <tr class="bg-gray-50 print:bg-transparent">
-                        <th class="border border-black p-2 w-10 text-center bg-white text-sm font-bold uppercase w-[50px]">No.</th>
-                        <!-- Ancho ajustado para "Jueves 11 de diciembre" -->
-                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-56 bg-white">Fecha</th>
-                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-24 bg-white">Grado</th>
-                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-40 bg-white">Área</th>
-                        <th class="border border-black p-2 text-sm font-bold uppercase text-left w-[350px] bg-white">Tema y/o Actividad</th>
-                        <th class="border border-black p-2 text-sm font-bold uppercase text-left bg-white">Observaciones</th>
-                        <th class="border border-black p-2 text-sm font-bold uppercase text-center w-24 bg-white no-print">Acciones</th>
+                    <tr class="pdf-table-header-color header-tabla-bg">
+                        <th style="width: 5%" class="border border-black p-2 text-center text-sm font-bold uppercase pdf-table-header-color header-tabla-bg">No.</th>
+                        <th style="width: 15%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Fecha</th>
+                        <th style="width: 10%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Grado</th>
+                        <th style="width: 15%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Área</th>
+                        <th style="width: 30%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Tema y/o Actividad</th>
+                        <th style="width: 25%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Observaciones</th>
+                        <th class="border border-black p-2 text-sm font-bold uppercase text-center pdf-table-header-color header-tabla-bg no-print w-24">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="cuerpoTabla"></tbody>
@@ -206,38 +228,32 @@
             
             <div id="loadingData" class="loader hidden"></div>
             <div id="mensajeVacio" class="text-center py-10 text-gray-400 italic hidden">
-                <i data-lucide="cloud-off" class="w-12 h-12 mx-auto mb-2 opacity-20"></i>
-                <p>No hay datos.</p>
+                <i data-lucide="cloud-off" class="w-12 h-12 mx-auto mb-2 opacity-20"></i><p>No hay datos.</p>
             </div>
             <div id="mensajeFiltroVacio" class="text-center py-10 text-gray-400 italic hidden">
-                <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-2 opacity-20"></i>
-                <p>No hay registros que coincidan con el filtro seleccionado.</p>
+                <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-2 opacity-20"></i><p>Sin coincidencias.</p>
             </div>
         </div>
 
         <footer id="footerApp" class="bg-gray-50 p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
             <div class="text-xs text-gray-400 font-mono">ID: ********</div>
-            <button id="btnExportar" onclick="descargarPDF()" class="w-full sm:w-auto bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105">
-                <i data-lucide="download" class="w-5 h-5"></i> Descargar PDF Horizontal
+            <button id="btnExportar" onclick="descargarPDF()" class="w-full sm:w-auto bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-transform">
+                <i data-lucide="download" class="w-5 h-5"></i> Descargar PDF
             </button>
         </footer>
     </div>
     
-    <!-- Confirm Modal -->
     <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 no-print">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100">
-            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2" id="confirmTitle">
-                <i data-lucide="alert-triangle" class="w-6 h-6 text-red-500"></i> Confirmar Acción
-            </h3>
-            <p class="text-gray-600 mb-6" id="confirmMessage">¿Estás seguro de que deseas realizar esta acción?</p>
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2" id="confirmTitle"><i data-lucide="alert-triangle" class="w-6 h-6 text-red-500"></i> Confirmar</h3>
+            <p class="text-gray-600 mb-6" id="confirmMessage">¿Seguro?</p>
             <div class="flex justify-end gap-3">
-                <button id="confirmCancel" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors">Cancelar</button>
-                <button id="confirmAction" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">Confirmar</button>
+                <button id="confirmCancel" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">Cancelar</button>
+                <button id="confirmAction" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <!-- Scripts de Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
@@ -249,9 +265,7 @@
         function mostrarError(mensaje) {
             document.getElementById('cajaError').classList.remove('hidden');
             document.getElementById('mensajeError').textContent = mensaje;
-            setTimeout(() => {
-                document.getElementById('cajaError').classList.add('hidden');
-            }, 8000); 
+            setTimeout(() => { document.getElementById('cajaError').classList.add('hidden'); }, 8000); 
         }
 
         function showConfirmModal(title, message, callback) {
@@ -269,9 +283,7 @@
 
         document.getElementById('confirmAction').onclick = () => {
             document.getElementById('confirmModal').classList.add('hidden');
-            if (globalConfirmCallback) {
-                globalConfirmCallback(true);
-            }
+            if (globalConfirmCallback) globalConfirmCallback(true);
             globalConfirmCallback = null;
         };
 
@@ -287,21 +299,17 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
         const CLAVE_PERSONAL = "Gusanito43@"; 
         let unsubscribeSnapshot = null;
         window.idEdicionActual = null; 
 
         enableIndexedDbPersistence(db).catch((err) => { console.log('Persistencia:', err.code); });
 
-        // FUNCIÓN DE ESTADO DE RED MINIMALISTA (Solo cambia color del punto)
         function actualizarEstadoRed() {
             const dot = document.getElementById('statusDot');
-            if (navigator.onLine) {
-                dot.className = "w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white transition-colors duration-300";
-            } else {
-                dot.className = "w-4 h-4 rounded-full bg-orange-500 shadow-md border-2 border-white transition-colors duration-300";
-            }
+            dot.className = navigator.onLine 
+                ? "w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white" 
+                : "w-4 h-4 rounded-full bg-orange-500 shadow-md border-2 border-white";
         }
         window.addEventListener('online', actualizarEstadoRed);
         window.addEventListener('offline', actualizarEstadoRed);
@@ -309,20 +317,13 @@
 
         signInAnonymously(auth).catch((error) => mostrarError("Fallo Auth: " + error.code));
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                lucide.createIcons();
-                cargarDatosPersonales();
-            }
-        });
+        onAuthStateChanged(auth, (user) => { if (user) { lucide.createIcons(); cargarDatosPersonales(); } });
 
         function cargarDatosPersonales() {
             const loading = document.getElementById('loadingData');
             loading.classList.remove('hidden');
             loading.style.display = 'block';
-
             const q = query(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'));
-
             if (unsubscribeSnapshot) unsubscribeSnapshot();
 
             unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
@@ -334,15 +335,12 @@
                 renderizarTabla(TODOS_LOS_REGISTROS);
                 lucide.createIcons();
                 filtrarTabla();
-            }, (error) => {
-                if (navigator.onLine) mostrarError("Error Firebase: " + error.message);
-            });
+            }, (error) => { if (navigator.onLine) mostrarError("Error Firebase: " + error.message); });
         }
 
         function renderizarTabla(datos, highlightId = null) {
             const tbody = document.getElementById('cuerpoTabla');
             tbody.innerHTML = '';
-            
             datos.sort((a, b) => new Date(a.fechaRaw || 0) - new Date(b.fechaRaw || 0) || a.timestamp - b.timestamp);
 
             document.getElementById('mensajeVacio').classList.add('hidden');
@@ -357,7 +355,6 @@
             } else {
                 let ultimaFecha = "";
                 let numeroClase = 1; 
-
                 datos.forEach(dato => {
                     const mostrarFecha = dato.fechaFormateada !== ultimaFecha;
                     renderizarFila(dato, mostrarFecha, numeroClase, tbody, highlightId);
@@ -370,23 +367,23 @@
 
         function renderizarFila(dato, mostrarFecha, numero, tbody, highlightId) {
             const tr = document.createElement('tr');
-            const css = "border border-black p-2 text-sm align-top bg-white";
+            // IMPORTANTE: Eliminamos 'bg-white' base para que no tape el fondo si se requiere
+            const css = "border border-black p-2 text-sm align-top";
             const contenidoFecha = mostrarFecha ? dato.fechaFormateada : "";
             const estiloPendiente = dato.pendiente ? "opacity-50 italic" : "";
-            const iconoPendiente = dato.pendiente ? `<i data-lucide="cloud-upload" class="w-3 h-3 inline text-orange-500 ml-1"></i>` : "";
             const highlightClass = dato.id === highlightId ? 'highlight-row' : '';
 
             tr.className = highlightClass;
             tr.id = `row-${dato.id}`;
             
             tr.innerHTML = `
-                <td class="${css} text-center font-bold text-gray-600 w-[50px]">${numero}</td>
+                <td class="${css} text-center font-bold text-gray-600">${numero}</td>
                 <td class="${css} font-bold text-[#548235] capitalize">${contenidoFecha}</td>
                 <td class="${css} font-semibold">${dato.grados}</td>
                 <td class="${css} uppercase text-xs font-semibold">${dato.area}</td>
-                <td class="${css} ${estiloPendiente}">${dato.tema} ${iconoPendiente}</td>
+                <td class="${css} ${estiloPendiente}">${dato.tema}</td>
                 <td class="${css} ${estiloPendiente}">${dato.obs}</td>
-                <td class="${css} text-center no-print border-none flex gap-1 justify-center">
+                <td class="${css} text-center no-print border-none flex gap-1 justify-center w-24">
                     <button class="btn-editar text-blue-600 hover:bg-blue-100 p-2 rounded" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>
                     <button class="btn-borrar text-red-500 hover:bg-red-100 p-2 rounded" title="Borrar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </td>
@@ -408,12 +405,11 @@
             const filtroGrado = document.getElementById('filtroGrado').value;
             const filtroArea = document.getElementById('filtroArea').value;
             let ultimoRegistro = null;
-
             document.querySelectorAll('.highlight-row').forEach(row => row.classList.remove('highlight-row'));
 
             if (!filtroGrado && !filtroArea) {
                 renderizarTabla(TODOS_LOS_REGISTROS);
-                document.getElementById('temaEncontrado').textContent = 'Seleccione un Grado y Área para buscar...';
+                document.getElementById('temaEncontrado').textContent = 'Seleccione un Grado y Área...';
                 document.getElementById('detalleEncontrado').textContent = '';
                 return;
             }
@@ -429,12 +425,12 @@
             if (datosFiltrados.length > 0) {
                 ultimoRegistro = datosFiltrados[0];
                 document.getElementById('temaEncontrado').textContent = ultimoRegistro.tema;
-                document.getElementById('detalleEncontrado').textContent = `Registro del ${ultimoRegistro.fechaFormateada} | Obs: ${ultimoRegistro.obs.substring(0, 50)}${ultimoRegistro.obs.length > 50 ? '...' : ''}`;
+                document.getElementById('detalleEncontrado').textContent = `${ultimoRegistro.fechaFormateada} | ${ultimoRegistro.obs.substring(0, 40)}...`;
                 datosFiltrados.sort((a, b) => new Date(a.fechaRaw || 0) - new Date(b.fechaRaw || 0) || a.timestamp - b.timestamp);
                 renderizarTabla(datosFiltrados, ultimoRegistro.id);
             } else {
-                document.getElementById('temaEncontrado').textContent = 'No se encontró ningún registro.';
-                document.getElementById('detalleEncontrado').textContent = 'Intente con otro filtro.';
+                document.getElementById('temaEncontrado').textContent = 'No hay datos.';
+                document.getElementById('detalleEncontrado').textContent = 'Intente otro filtro.';
                 renderizarTabla([]); 
             }
         };
@@ -442,7 +438,7 @@
         window.limpiarFiltros = () => {
             document.getElementById('filtroGrado').value = "";
             actualizarAreasFiltro(); 
-            document.getElementById('temaEncontrado').textContent = 'Seleccione un Grado y Área para buscar...';
+            document.getElementById('temaEncontrado').textContent = 'Seleccione un Grado y Área...';
             document.getElementById('detalleEncontrado').textContent = '';
             filtrarTabla();
         }
@@ -454,11 +450,10 @@
             const btn = document.getElementById('btnAgregar');
             btn.classList.replace('bg-[#548235]', 'bg-blue-600');
             btn.classList.replace('hover:bg-[#43692a]', 'hover:bg-blue-700');
-            document.getElementById('btnText').textContent = "Actualizar Registro";
+            document.getElementById('btnText').textContent = "Actualizar";
             document.getElementById('btnCancelar').classList.remove('hidden');
 
             document.getElementById('inputFecha').value = dato.fechaRaw;
-            
             const esPreescolar = dato.grados.includes('Preescolar');
             const esPrimaria = dato.grados.includes('1°') || dato.grados.includes('2°') || dato.grados.includes('3°') || dato.grados.includes('4°') || dato.grados.includes('5°') || dato.grados.includes('Todos');
             
@@ -494,47 +489,30 @@
             const obs = document.getElementById('inputObs').value;
             const placeholderArea = document.querySelector('#inputArea option[disabled]').value;
 
-            // --- LÓGICA DE VALIDACIÓN MODIFICADA ---
-            
-            // 1. Áreas de excepción: INSTITUCIONAL o ACTIVIDADES COMPLEMENTARIAS
-            // Se incluyen las variantes posibles
             const areasExcepcion = ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS", "ACTIVIDADES COMPLEMENTARIAS"];
             const esExcepcion = areasExcepcion.includes(area);
 
-            // 2. Validación de campos universales (Fecha, Tema, Área)
             if (!fecha || !tema || area === placeholderArea) {
-                if (!fecha || !tema) mostrarError("Falta: Fecha y Tema.");
-                else if (area === placeholderArea) mostrarError("Falta: Área.");
+                mostrarError("Faltan datos obligatorios (Fecha, Tema o Área).");
                 return; 
             }
 
-            // 3. Validación de Grado (SOLO si NO es excepción)
             if (!esExcepcion) {
-                // Si NO es Institucional ni Complementarias, exigimos Grado
                 if (grados === "Seleccionar..." || grados.trim() === "") {
                     mostrarError("Falta: Seleccionar el Grado.");
                     return; 
                 }
             } else {
-                // Si ES excepción y el usuario no seleccionó grado, guardamos como "No Aplica"
-                // para que no quede "Seleccionar..." en la base de datos
-                if (grados === "Seleccionar...") {
-                    grados = "No Aplica";
-                }
+                if (grados === "Seleccionar...") grados = "No Aplica";
             }
 
-            // --- CORRECCIÓN FECHA: Día + # + "de" + Mes ---
             const fechaObj = new Date(fecha + 'T00:00:00'); 
-            const opcionesFecha = { weekday: 'long', day: 'numeric', month: 'long' }; 
-            let fechaTexto = fechaObj.toLocaleDateString('es-ES', opcionesFecha);
-            // "jueves, 11 de diciembre" -> "Jueves 11 de diciembre"
+            let fechaTexto = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
             fechaTexto = fechaTexto.replace(',', ''); 
             fechaTexto = fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1);
             
-            const fechaVisual = fechaTexto;
-
             const datosGuardar = {
-                fechaRaw: fecha, fechaFormateada: fechaVisual, grados, area, tema, obs, timestamp: Date.now()
+                fechaRaw: fecha, fechaFormateada: fechaTexto, grados, area, tema, obs, timestamp: Date.now()
             };
 
             try {
@@ -546,9 +524,7 @@
                     document.getElementById('inputTema').value = '';
                     document.getElementById('inputObs').value = '';
                 }
-            } catch (error) {
-                mostrarError("Fallo al guardar: " + error.message);
-            }
+            } catch (error) { mostrarError("Fallo al guardar: " + error.message); }
         };
 
         window.borrarDato = async (id) => {
@@ -565,12 +541,10 @@
         document.getElementById('inputFecha').valueAsDate = new Date();
         lucide.createIcons();
     </script>
-
-    <!-- UI Scripts -->
     <script>
-        function toggleDropdown(id, buttonId) { 
-            document.querySelectorAll('.dropdown-content').forEach(d => { if(d.id !== id) d.classList.remove('show'); });
-            document.getElementById(id).classList.toggle("show"); 
+        function toggleDropdown(id) { 
+            const d = document.getElementById(id);
+            d.classList.toggle("show");
         }
 
         window.onclick = function(e) { 
@@ -611,9 +585,7 @@
             actualizarAreas(hayPreescolar, hayPrimaria, vals.includes('Todos'));
         }
 
-        // SE AGREGO JORNADA UNICA AQUI
         const opPrimaria = `<optgroup label="ÁREAS"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
-        // SE AGREGO JORNADA UNICA AQUI TAMBIEN
         const opPreescolar = `<optgroup label="DIMENSIONES"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option></optgroup>`;
 
         function actualizarAreas(hayPre, hayOtros, esTodos) {
@@ -634,7 +606,7 @@
             const valorActual = selFiltroArea.value; 
             const gradoSeleccionado = selFiltroGrado.value;
             const esPreescolar = gradoSeleccionado === 'Preescolar';
-            let opciones = '<option value="">-- Todas las Áreas --</option>';
+            let opciones = '<option value="">-- Todas --</option>';
             if (esPreescolar) opciones += opPreescolar;
             else if (gradoSeleccionado && gradoSeleccionado !== 'Todos') opciones += opPrimaria;
             else { opciones += opPrimaria; opciones += opPreescolar.split('</optgroup>')[0] + '</optgroup>'; }
@@ -645,48 +617,69 @@
         };
 
         function descargarPDF() {
-            const elemento = document.getElementById('contenedorExportar');
             const btn = document.getElementById('btnExportar');
             const txtOriginal = btn.innerHTML;
-            btn.innerHTML = `<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Generando PDF...`;
+            btn.innerHTML = `<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Generando...`;
             btn.disabled = true;
             lucide.createIcons();
+            
+            const elemento = document.getElementById('contenedorExportar');
+            const headerWeb = document.getElementById('headerWeb');
+            const headerPDF = document.getElementById('headerPDF');
+            const tablaWrapper = document.getElementById('contenedorTablaWrapper');
+            
             const ocultos = ['seccionFormulario', 'footerApp', 'cajaError', 'seccionBusqueda', 'confirmModal']; 
             ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
             document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
             
-            // 1. OCULTAR ENCABEZADO WEB, MOSTRAR PDF
-            document.getElementById('headerWeb').classList.add('hidden');
-            document.getElementById('headerPDF').classList.remove('hidden');
-            document.getElementById('headerPDF').classList.add('flex'); // Asegurar flex
+            headerWeb.style.display = 'none';
+            headerPDF.classList.remove('hidden');
+            headerPDF.classList.add('flex');
+            
+            elemento.classList.add('pdf-mode-active');
 
-            document.getElementById('mensajeVacio').style.display = 'none';
-            document.getElementById('mensajeFiltroVacio').style.display = 'none';
+            const opt = { 
+                margin: [0.3, 0.3, 0.3, 0.3], 
+                filename: 'Diario_Procesos.pdf', 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true, logging: false }, 
+                pagebreak: { mode: ['css'] }, // SOLO MODO CSS para respetar page-break-inside
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } 
+            };
 
-            const opt = { margin: 0.5, filename: 'Diario_Gusanito43.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } };
-            html2pdf().set(opt).from(elemento).save().then(() => {
-                // 2. RESTAURAR VISIBILIDAD DE ENCABEZADOS
-                document.getElementById('headerWeb').classList.remove('hidden');
-                document.getElementById('headerPDF').classList.add('hidden');
-                document.getElementById('headerPDF').classList.remove('flex');
-
-                ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
-                document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
-                filtrarTabla(); 
-                btn.innerHTML = txtOriginal;
-                btn.disabled = false;
-                lucide.createIcons();
+            html2pdf().set(opt).from(elemento).save()
+            .then(() => restaurarVista(ocultos, btn, txtOriginal, headerWeb, headerPDF, tablaWrapper, elemento))
+            .catch(err => {
+                console.error(err);
+                alert("Error al generar PDF.");
+                restaurarVista(ocultos, btn, txtOriginal, headerWeb, headerPDF, tablaWrapper, elemento);
             });
+        }
+
+        function restaurarVista(ocultos, btn, txtOriginal, headerWeb, headerPDF, tablaWrapper, elemento) {
+            ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
+            document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
+
+            headerWeb.style.display = '';
+            headerPDF.classList.add('hidden');
+            headerPDF.classList.remove('flex');
+            
+            elemento.classList.remove('pdf-mode-active');
+
+            filtrarTabla(); 
+            btn.innerHTML = txtOriginal;
+            btn.disabled = false;
+            lucide.createIcons();
         }
     </script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/Diariodeprocesos2026/sw.js')
-                    .then(registration => { console.log('ServiceWorker registrado:', registration.scope); })
-                    .catch(error => { console.error('Fallo el registro del ServiceWorker:', error); });
+                navigator.serviceWorker.register('/Diariodeprocesos2026/sw.js').catch(error => console.error(error));
             });
         }
     </script>
 </body>
 </html>
+
+

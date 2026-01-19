@@ -18,17 +18,9 @@
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #548235; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* --- CLASES CRÍTICAS PARA PDF/IMPRESIÓN --- */
-        
-        /* Reglas de ruptura de página para que fluya suavemente */
-        tr { 
-            page-break-inside: avoid !important; /* No partir una fila a la mitad */
-            page-break-after: auto !important;
-        }
-        
-        table {
-            page-break-inside: auto !important; /* Permitir que la tabla se divida entre páginas */
-        }
+        /* --- CLASES CRÍTICAS PARA PDF --- */
+        tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+        table { page-break-inside: auto !important; }
 
         .header-verde-tabla {
             background-color: #548235 !important;
@@ -58,45 +50,21 @@
             100% { background-color: #fff; }
         }
 
-        /* --- MODO PDF (JS) --- */
+        /* --- MODO PDF (JS) - AJUSTE DE MÁRGENES --- */
         .pdf-mode-active {
-            width: 1024px !important; 
-            min-width: 1024px !important;
-            margin: 0 auto !important;
+            width: 1000px !important; /* Reducido ligeramente de 1024px para dar aire a los lados */
+            min-width: 1000px !important;
+            margin: 0 auto !important; /* ESTO ES CLAVE: Centra el contenido */
             padding: 0 !important;
             border: none !important;
             box-shadow: none !important;
             background: white !important;
         }
-
-        .pdf-mode-active #contenedorTablaWrapper {
-            overflow: visible !important; 
-        }
-
-        .pdf-mode-active table {
-            width: 100% !important;
-            table-layout: fixed !important; 
-        }
-        
-        .pdf-mode-active td, .pdf-mode-active th {
-            white-space: normal !important;
-            word-wrap: break-word !important;
-            font-size: 11px !important; 
-        }
-
-        /* Clases específicas para inyectar color al generar PDF */
-        .pdf-header-color {
-            background-color: #92d050 !important; /* Verde Limón Original */
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-
-        .pdf-table-header-color {
-            background-color: #548235 !important; /* Verde Oscuro Original */
-            color: white !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
+        .pdf-mode-active #contenedorTablaWrapper { overflow: visible !important; }
+        .pdf-mode-active table { width: 100% !important; table-layout: fixed !important; }
+        .pdf-mode-active td, .pdf-mode-active th { white-space: normal !important; word-wrap: break-word !important; font-size: 11px !important; }
+        .pdf-header-color { background-color: #92d050 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .pdf-table-header-color { background-color: #548235 !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
     </style>
 </head>
@@ -108,12 +76,12 @@
             <div id="statusDot" class="w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white"></div>
         </div>
 
-        <!-- Header Web (App) -->
+        <!-- Header Web -->
         <header id="headerWeb" class="bg-[#548235] text-white p-6 text-center">
             <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wide">Diario de Campo Docente</h1>
         </header>
 
-        <!-- Header PDF (RESTAURADO COLOR ORIGINAL) -->
+        <!-- Header PDF -->
         <div id="headerPDF" class="hidden flex-row items-center gap-4 p-4 border-b-2 border-[#548235] w-full mb-0 pdf-header-color header-pdf-bg">
             <div class="flex-shrink-0 w-24 h-24 flex items-center justify-center">
                 <img src="escudo.png" onerror="this.style.display='none'" alt="Escudo" class="w-full h-full object-contain">
@@ -127,120 +95,146 @@
             </div>
         </div>
         
+        <!-- Caja Error -->
         <div id="cajaError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mx-4 mt-4 hidden no-print">
             <strong class="font-bold">Aviso:</strong> <span id="mensajeError"></span>
             <span onclick="document.getElementById('cajaError').classList.add('hidden')" class="absolute top-0 right-0 px-4 py-3 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></span>
         </div>
 
-        <!-- Formulario -->
-        <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print">
-            <h2 class="text-lg font-bold text-[#548235] mb-4 border-b border-[#548235] pb-1">Nuevo Registro</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:col-cols-12 gap-4">
-                <div class="flex flex-col lg:col-span-3">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Fecha</label>
-                    <input type="date" id="inputFecha" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase">
-                </div>
-                <div class="flex flex-col lg:col-span-2 relative">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado(s)</label>
-                    <button type="button" onclick="toggleDropdown('dropdownGrados')" id="btnGrados" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center">
-                        <span id="textoGradosSeleccionados" class="truncate text-sm">Seleccionar...</span>
-                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500"></i>
-                    </button>
-                    <div id="dropdownGrados" class="dropdown-content p-2">
-                        <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded border-b font-bold text-[#548235]"><input type="checkbox" value="Todos" onchange="seleccionarTodos(this)" class="rounded text-[#548235]"> <span>Todos</span></label>
-                        <div id="listaCheckboxes">
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="1°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>1°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="2°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>2°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="3°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>3°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="4°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>4°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="5°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>5°</span></label>
-                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded border-t mt-1"><input type="checkbox" value="Preescolar" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span class="font-semibold">Preescolar</span></label>
+        <!-- VISTA PRINCIPAL -->
+        <div id="vistaPrincipal">
+            <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print">
+                <h2 class="text-lg font-bold text-[#548235] mb-4 border-b border-[#548235] pb-1">Nuevo Registro</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:col-cols-12 gap-4">
+                    <div class="flex flex-col lg:col-span-3">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Fecha</label>
+                        <input type="date" id="inputFecha" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase">
+                    </div>
+                    <div class="flex flex-col lg:col-span-2 relative">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado(s)</label>
+                        <button type="button" onclick="toggleDropdown('dropdownGrados')" id="btnGrados" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center">
+                            <span id="textoGradosSeleccionados" class="truncate text-sm">Seleccionar...</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500"></i>
+                        </button>
+                        <div id="dropdownGrados" class="dropdown-content p-2">
+                            <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded border-b font-bold text-[#548235]"><input type="checkbox" value="Todos" onchange="seleccionarTodos(this)" class="rounded text-[#548235]"> <span>Todos</span></label>
+                            <div id="listaCheckboxes">
+                                <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="1°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>1°</span></label>
+                                <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="2°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>2°</span></label>
+                                <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="3°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>3°</span></label>
+                                <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="4°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>4°</span></label>
+                                <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded"><input type="checkbox" value="5°" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span>5°</span></label>
+                                <label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded border-t mt-1"><input type="checkbox" value="Preescolar" class="grado-checkbox rounded text-[#548235]" onchange="actualizarTextoGrados()"><span class="font-semibold">Preescolar</span></label>
+                            </div>
                         </div>
                     </div>
+                    <div class="flex flex-col lg:col-span-7">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área / Asignatura</label>
+                        <select id="inputArea" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase font-medium"></select>
+                    </div>
+                    <div class="flex flex-col lg:col-span-12">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Tema / Actividad</label>
+                        <textarea id="inputTema" rows="2" placeholder="Describe la actividad..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none"></textarea>
+                    </div>
+                    <div class="flex flex-col lg:col-span-12">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Observaciones</label>
+                        <textarea id="inputObs" rows="2" placeholder="Notas..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none"></textarea>
+                    </div>
                 </div>
-                <div class="flex flex-col lg:col-span-7">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área / Asignatura</label>
-                    <select id="inputArea" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase font-medium"></select>
+                <div class="flex gap-2 mt-4">
+                    <button id="btnAgregar" onclick="guardarEnNube()" class="flex-1 bg-[#548235] hover:bg-[#43692a] text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
+                        <i data-lucide="save" class="w-5 h-5"></i> <span id="btnText">Guardar</span>
+                    </button>
+                    <button id="btnCancelar" onclick="cancelarEdicion()" class="hidden bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
+                        <i data-lucide="x-circle" class="w-5 h-5"></i> Cancelar
+                    </button>
                 </div>
-                <div class="flex flex-col lg:col-span-12">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Tema / Actividad</label>
-                    <textarea id="inputTema" rows="2" placeholder="Describe la actividad..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none"></textarea>
-                </div>
-                <div class="flex flex-col lg:col-span-12">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Observaciones</label>
-                    <textarea id="inputObs" rows="2" placeholder="Notas..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none"></textarea>
-                </div>
-            </div>
-            <div class="flex gap-2 mt-4">
-                <button id="btnAgregar" onclick="guardarEnNube()" class="flex-1 bg-[#548235] hover:bg-[#43692a] text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
-                    <i data-lucide="save" class="w-5 h-5"></i> <span id="btnText">Guardar</span>
-                </button>
-                <button id="btnCancelar" onclick="cancelarEdicion()" class="hidden bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 transition-colors shadow-sm">
-                    <i data-lucide="x-circle" class="w-5 h-5"></i> Cancelar
-                </button>
-            </div>
-        </section>
-        
-        <!-- Busqueda -->
-        <section id="seccionBusqueda" class="p-4 md:p-6 bg-yellow-50 border-y border-yellow-200 no-print">
-            <h2 class="text-lg font-bold text-yellow-800 mb-3 flex items-center gap-2"><i data-lucide="search" class="w-5 h-5"></i> Búsqueda Rápida</h2>
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                <div class="flex flex-col md:col-span-3">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado</label>
-                    <select id="filtroGrado" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm" onchange="actualizarAreasFiltro(); filtrarTabla()">
-                        <option value="">-- Todos --</option>
-                        <option value="1°">1°</option><option value="2°">2°</option><option value="3°">3°</option><option value="4°">4°</option><option value="5°">5°</option><option value="Preescolar">Preescolar</option><option value="Todos">Todos</option>
-                    </select>
-                </div>
-                <div class="flex flex-col md:col-span-4">
-                    <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área</label>
-                    <select id="filtroArea" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm" onchange="filtrarTabla()">
-                        <option value="">-- Todas --</option>
-                    </select>
-                </div>
-                <div class="md:col-span-5 flex justify-end">
-                     <button onclick="limpiarFiltros()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center gap-2"><i data-lucide="filter-off" class="w-4 h-4"></i> Limpiar</button>
-                </div>
-            </div>
-            <div id="resultadoUltimoTema" class="mt-4 p-3 bg-yellow-100 rounded-lg border border-yellow-300">
-                <p class="text-xs font-semibold text-yellow-700 uppercase">Último Tema Trabajado:</p>
-                <p id="temaEncontrado" class="text-gray-800 font-bold text-lg italic">Seleccione un Grado y Área...</p>
-                <p id="detalleEncontrado" class="text-sm text-gray-600 mt-1"></p>
-            </div>
-        </section>
-
-        <!-- Tabla -->
-        <div class="p-4 md:p-6 overflow-x-auto" id="contenedorTablaWrapper">
-            <table class="w-full border-collapse border border-black" id="tablaDiario">
-                <thead>
-                    <tr class="pdf-table-header-color header-tabla-bg">
-                        <th style="width: 5%" class="border border-black p-2 text-center text-sm font-bold uppercase pdf-table-header-color header-tabla-bg">No.</th>
-                        <th style="width: 15%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Fecha</th>
-                        <th style="width: 10%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Grado</th>
-                        <th style="width: 15%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Área</th>
-                        <th style="width: 30%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Tema y/o Actividad</th>
-                        <th style="width: 25%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Observaciones</th>
-                        <th class="border border-black p-2 text-sm font-bold uppercase text-center pdf-table-header-color header-tabla-bg no-print w-24">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="cuerpoTabla"></tbody>
-            </table>
+            </section>
             
-            <div id="loadingData" class="loader hidden"></div>
-            <div id="mensajeVacio" class="text-center py-10 text-gray-400 italic hidden">
-                <i data-lucide="cloud-off" class="w-12 h-12 mx-auto mb-2 opacity-20"></i><p>No hay datos.</p>
-            </div>
-            <div id="mensajeFiltroVacio" class="text-center py-10 text-gray-400 italic hidden">
-                <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-2 opacity-20"></i><p>Sin coincidencias.</p>
-            </div>
+            <section class="p-6 bg-yellow-50 border-t border-yellow-200 text-center no-print">
+                <button onclick="entrarCompilacion()" class="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 px-8 rounded-lg flex items-center justify-center gap-3 shadow-lg transition-transform hover:scale-105 border-2 border-yellow-800 mx-auto">
+                    <i data-lucide="book-open" class="w-8 h-8"></i> 
+                    <span class="text-lg">CONSULTAR / FILTRAR DIARIO</span>
+                </button>
+                <p class="text-yellow-800 mt-2 text-sm">Accede aquí para buscar, filtrar y descargar el PDF.</p>
+            </section>
         </div>
 
-        <footer id="footerApp" class="bg-gray-50 p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
-            <div class="text-xs text-gray-400 font-mono">ID: ********</div>
-            <button id="btnExportar" onclick="descargarPDF()" class="w-full sm:w-auto bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-transform">
-                <i data-lucide="download" class="w-5 h-5"></i> Descargar PDF
-            </button>
-        </footer>
+        <!-- VISTA COMPILACIÓN -->
+        <div id="vistaCompilacion" class="hidden">
+            
+            <div class="bg-gray-100 p-3 border-b border-gray-300 flex flex-col md:flex-row justify-between items-center gap-3 sticky top-0 z-20 no-print shadow-sm">
+                <button onclick="salirCompilacion()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded flex items-center gap-2 text-sm w-full md:w-auto justify-center">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver
+                </button>
+                
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button onclick="irAlFinal()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 text-sm">
+                        <i data-lucide="arrow-down-circle" class="w-4 h-4"></i> Ir al Final
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 p-4 border-b border-yellow-200 no-print">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <div class="flex flex-col md:col-span-3">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Filtrar por Grado</label>
+                        <select id="filtroGrado" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm" onchange="actualizarAreasFiltro(); filtrarTabla()">
+                            <option value="">-- Ver Todos --</option>
+                            <option value="1°">1°</option><option value="2°">2°</option><option value="3°">3°</option><option value="4°">4°</option><option value="5°">5°</option><option value="Preescolar">Preescolar</option><option value="Todos">Todos</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col md:col-span-4">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Filtrar por Área</label>
+                        <select id="filtroArea" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm" onchange="filtrarTabla()">
+                            <option value="">-- Ver Todas --</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col md:col-span-3">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Ordenar por Fecha</label>
+                        <select id="ordenarFecha" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm font-semibold text-blue-800" onchange="filtrarTabla()">
+                            <option value="desc">Más Reciente Primero</option>
+                            <option value="asc">Más Antigua Primero</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                         <button onclick="limpiarFiltros()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center gap-2 text-sm border border-gray-300">
+                             <i data-lucide="filter-off" class="w-4 h-4"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA -->
+            <div class="p-4 md:p-6 overflow-x-auto" id="contenedorTablaWrapper">
+                <table class="w-full border-collapse border border-black" id="tablaDiario">
+                    <thead>
+                        <tr class="pdf-table-header-color header-tabla-bg">
+                            <th style="width: 5%" class="border border-black p-2 text-center text-sm font-bold uppercase pdf-table-header-color header-tabla-bg">No.</th>
+                            <th style="width: 15%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Fecha</th>
+                            <th style="width: 10%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Grado</th>
+                            <th style="width: 15%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Área</th>
+                            <th style="width: 30%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Tema y/o Actividad</th>
+                            <th style="width: 25%" class="border border-black p-2 text-sm font-bold uppercase text-left pdf-table-header-color header-tabla-bg">Observaciones</th>
+                            <th class="border border-black p-2 text-sm font-bold uppercase text-center pdf-table-header-color header-tabla-bg no-print w-24">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla"></tbody>
+                </table>
+                
+                <div id="loadingData" class="loader hidden"></div>
+                <div id="mensajeVacio" class="text-center py-10 text-gray-400 italic hidden">
+                    <i data-lucide="cloud-off" class="w-12 h-12 mx-auto mb-2 opacity-20"></i><p>No hay registros visibles.</p>
+                </div>
+            </div>
+
+            <footer id="footerApp" class="bg-gray-50 p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
+                <div class="text-xs text-gray-400 font-mono">ID: ********</div>
+                <button id="btnExportar" onclick="descargarPDF()" class="w-full sm:w-auto bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-transform">
+                    <i data-lucide="download" class="w-5 h-5"></i> Descargar PDF
+                </button>
+            </footer>
+        </div>
     </div>
     
     <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 no-print">
@@ -259,7 +253,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
         
-        let TODOS_LOS_REGISTROS = [];
+        window.TODOS_LOS_REGISTROS = [];
         let globalConfirmCallback = null;
         
         function mostrarError(mensaje) {
@@ -268,7 +262,7 @@
             setTimeout(() => { document.getElementById('cajaError').classList.add('hidden'); }, 8000); 
         }
 
-        function showConfirmModal(title, message, callback) {
+        window.showConfirmModal = (title, message, callback) => {
             document.getElementById('confirmTitle').innerHTML = `<i data-lucide="alert-triangle" class="w-6 h-6 text-red-500"></i> ${title}`;
             document.getElementById('confirmMessage').textContent = message;
             document.getElementById('confirmModal').classList.remove('hidden');
@@ -321,40 +315,158 @@
 
         function cargarDatosPersonales() {
             const loading = document.getElementById('loadingData');
-            loading.classList.remove('hidden');
-            loading.style.display = 'block';
+            if(!document.getElementById('vistaCompilacion').classList.contains('hidden')) {
+               loading.classList.remove('hidden');
+               loading.style.display = 'block';
+            }
+
             const q = query(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'));
             if (unsubscribeSnapshot) unsubscribeSnapshot();
 
             unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
                 loading.style.display = 'none';
-                TODOS_LOS_REGISTROS = [];
+                window.TODOS_LOS_REGISTROS = [];
                 snapshot.forEach(doc => {
-                    TODOS_LOS_REGISTROS.push({ id: doc.id, ...doc.data(), pendiente: doc.metadata.hasPendingWrites });
+                    window.TODOS_LOS_REGISTROS.push({ id: doc.id, ...doc.data(), pendiente: doc.metadata.hasPendingWrites });
                 });
-                renderizarTabla(TODOS_LOS_REGISTROS);
+                
+                if(!document.getElementById('vistaCompilacion').classList.contains('hidden')) {
+                    window.filtrarTabla();
+                }
+                
                 lucide.createIcons();
-                filtrarTabla();
             }, (error) => { if (navigator.onLine) mostrarError("Error Firebase: " + error.message); });
         }
+
+        window.guardarEnNube = async () => {
+            const fecha = document.getElementById('inputFecha').value;
+            let grados = document.getElementById('textoGradosSeleccionados').textContent;
+            const area = document.getElementById('inputArea').value;
+            const tema = document.getElementById('inputTema').value;
+            const obs = document.getElementById('inputObs').value;
+            const placeholderArea = document.querySelector('#inputArea option[disabled]').value;
+
+            const areasExcepcion = ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS", "ACTIVIDADES COMPLEMENTARIAS"];
+            const esExcepcion = areasExcepcion.includes(area);
+
+            if (!fecha || !tema || area === placeholderArea) {
+                mostrarError("Faltan datos obligatorios.");
+                return; 
+            }
+
+            if (!esExcepcion) {
+                if (grados === "Seleccionar..." || grados.trim() === "") {
+                    mostrarError("Seleccionar Grado.");
+                    return; 
+                }
+            } else {
+                if (grados === "Seleccionar...") grados = "No Aplica";
+            }
+
+            const fechaObj = new Date(fecha + 'T00:00:00'); 
+            let fechaTexto = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+            fechaTexto = fechaTexto.replace(',', ''); 
+            fechaTexto = fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1);
+            
+            const datosGuardar = {
+                fechaRaw: fecha, fechaFormateada: fechaTexto, grados, area, tema, obs, timestamp: Date.now()
+            };
+
+            try {
+                if (window.idEdicionActual) {
+                    await updateDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', window.idEdicionActual), datosGuardar);
+                    window.cancelarEdicion();
+                } else {
+                    await addDoc(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'), datosGuardar);
+                    document.getElementById('inputTema').value = '';
+                    document.getElementById('inputObs').value = '';
+                }
+                const btn = document.getElementById('btnAgregar');
+                const prevText = btn.innerHTML;
+                btn.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> ¡Guardado!`;
+                lucide.createIcons();
+                setTimeout(() => { btn.innerHTML = prevText; lucide.createIcons(); }, 1500);
+
+            } catch (error) { mostrarError("Fallo al guardar: " + error.message); }
+        };
+
+        window.borrarDato = async (id) => {
+             window.showConfirmModal("Confirmar Eliminación", "¿Estás seguro?", async (confirmed) => {
+                if (confirmed) {
+                    try { 
+                        await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id)); 
+                        if(window.idEdicionActual === id) window.cancelarEdicion();
+                    } catch (e) { mostrarError("Fallo al borrar: " + e.message); }
+                }
+            });
+        };
+
+        document.getElementById('inputFecha').valueAsDate = new Date();
+        lucide.createIcons();
+    </script>
+    <script>
+        // --- LOGICA UI ---
+        
+        window.entrarCompilacion = () => {
+            document.getElementById('vistaPrincipal').classList.add('hidden');
+            document.getElementById('vistaCompilacion').classList.remove('hidden');
+            
+            document.getElementById('filtroGrado').value = "";
+            document.getElementById('filtroArea').value = "";
+            document.getElementById('ordenarFecha').value = "desc";
+            
+            window.actualizarAreasFiltro(); 
+            window.filtrarTabla();
+            window.scrollTo(0,0);
+        };
+
+        window.salirCompilacion = () => {
+            document.getElementById('vistaPrincipal').classList.remove('hidden');
+            document.getElementById('vistaCompilacion').classList.add('hidden');
+            window.scrollTo(0,0);
+        };
+
+        window.irAlFinal = () => {
+            setTimeout(() => {
+                document.getElementById('footerApp').scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 100);
+        };
 
         function renderizarTabla(datos, highlightId = null) {
             const tbody = document.getElementById('cuerpoTabla');
             tbody.innerHTML = '';
-            datos.sort((a, b) => new Date(a.fechaRaw || 0) - new Date(b.fechaRaw || 0) || a.timestamp - b.timestamp);
+            
+            const orden = document.getElementById('ordenarFecha').value; 
+            
+            if(datos.length > 1) {
+                datos.sort((a, b) => {
+                    const dateA = new Date(a.fechaRaw || 0);
+                    const dateB = new Date(b.fechaRaw || 0);
+                    const timeA = a.timestamp || 0;
+                    const timeB = b.timestamp || 0;
+
+                    if (dateA.getTime() !== dateB.getTime()) {
+                        return orden === 'asc' ? dateA - dateB : dateB - dateA;
+                    }
+                    return orden === 'asc' ? timeA - timeB : timeB - timeA;
+                });
+            }
 
             document.getElementById('mensajeVacio').classList.add('hidden');
-            document.getElementById('mensajeFiltroVacio').classList.add('hidden');
 
             if (datos.length === 0) {
-                if(document.getElementById('filtroGrado').value || document.getElementById('filtroArea').value) {
-                    document.getElementById('mensajeFiltroVacio').classList.remove('hidden');
-                } else {
-                    document.getElementById('mensajeVacio').classList.remove('hidden');
-                }
+                document.getElementById('mensajeVacio').classList.remove('hidden');
             } else {
                 let ultimaFecha = "";
+                // Si orden es descendente, fecha arriba es la nueva. Si es ascendente, es la vieja.
+                // En ambos casos comparamos con la "ultimaFecha" procesada para saber si agrupar visualmente o no.
+                
+                // IMPORTANTE: Para numerar correctamente según orden visual
+                // Si es ASC (antiguo primero), el primero es 1.
+                // Si es DESC (nuevo primero), el primero es N.
+                // Para simplificar la visualización y no confundir, enumeraremos del 1 al N según se muestran en pantalla.
                 let numeroClase = 1; 
+                
                 datos.forEach(dato => {
                     const mostrarFecha = dato.fechaFormateada !== ultimaFecha;
                     renderizarFila(dato, mostrarFecha, numeroClase, tbody, highlightId);
@@ -367,7 +479,6 @@
 
         function renderizarFila(dato, mostrarFecha, numero, tbody, highlightId) {
             const tr = document.createElement('tr');
-            // IMPORTANTE: Eliminamos 'bg-white' base para que no tape el fondo si se requiere
             const css = "border border-black p-2 text-sm align-top";
             const contenidoFecha = mostrarFecha ? dato.fechaFormateada : "";
             const estiloPendiente = dato.pendiente ? "opacity-50 italic" : "";
@@ -389,8 +500,12 @@
                 </td>
             `;
             
-            tr.querySelector('.btn-borrar').onclick = () => borrarDato(dato.id);
-            tr.querySelector('.btn-editar').onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); preparacionEdicion(dato); };
+            tr.querySelector('.btn-borrar').onclick = () => window.borrarDato(dato.id);
+            tr.querySelector('.btn-editar').onclick = () => { 
+                window.salirCompilacion(); 
+                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+                window.preparacionEdicion(dato); 
+            };
             tbody.appendChild(tr);
 
             if(highlightId === dato.id) {
@@ -404,43 +519,21 @@
         window.filtrarTabla = () => {
             const filtroGrado = document.getElementById('filtroGrado').value;
             const filtroArea = document.getElementById('filtroArea').value;
-            let ultimoRegistro = null;
-            document.querySelectorAll('.highlight-row').forEach(row => row.classList.remove('highlight-row'));
-
-            if (!filtroGrado && !filtroArea) {
-                renderizarTabla(TODOS_LOS_REGISTROS);
-                document.getElementById('temaEncontrado').textContent = 'Seleccione un Grado y Área...';
-                document.getElementById('detalleEncontrado').textContent = '';
-                return;
-            }
-
-            const datosFiltrados = TODOS_LOS_REGISTROS.filter(dato => {
+            
+            const datosFiltrados = window.TODOS_LOS_REGISTROS.filter(dato => {
                 const coincideGrado = !filtroGrado || (filtroGrado === 'Todos' && dato.grados.includes('Todos')) || dato.grados.includes(filtroGrado);
                 const coincideArea = !filtroArea || dato.area === filtroArea;
                 return coincideGrado && coincideArea;
             });
             
-            datosFiltrados.sort((a, b) => b.timestamp - a.timestamp);
-            
-            if (datosFiltrados.length > 0) {
-                ultimoRegistro = datosFiltrados[0];
-                document.getElementById('temaEncontrado').textContent = ultimoRegistro.tema;
-                document.getElementById('detalleEncontrado').textContent = `${ultimoRegistro.fechaFormateada} | ${ultimoRegistro.obs.substring(0, 40)}...`;
-                datosFiltrados.sort((a, b) => new Date(a.fechaRaw || 0) - new Date(b.fechaRaw || 0) || a.timestamp - b.timestamp);
-                renderizarTabla(datosFiltrados, ultimoRegistro.id);
-            } else {
-                document.getElementById('temaEncontrado').textContent = 'No hay datos.';
-                document.getElementById('detalleEncontrado').textContent = 'Intente otro filtro.';
-                renderizarTabla([]); 
-            }
+            renderizarTabla(datosFiltrados);
         };
 
         window.limpiarFiltros = () => {
             document.getElementById('filtroGrado').value = "";
-            actualizarAreasFiltro(); 
-            document.getElementById('temaEncontrado').textContent = 'Seleccione un Grado y Área...';
-            document.getElementById('detalleEncontrado').textContent = '';
-            filtrarTabla();
+            document.getElementById('ordenarFecha').value = "desc";
+            window.actualizarAreasFiltro(); 
+            window.filtrarTabla();
         }
 
         window.preparacionEdicion = (dato) => {
@@ -457,7 +550,7 @@
             const esPreescolar = dato.grados.includes('Preescolar');
             const esPrimaria = dato.grados.includes('1°') || dato.grados.includes('2°') || dato.grados.includes('3°') || dato.grados.includes('4°') || dato.grados.includes('5°') || dato.grados.includes('Todos');
             
-            actualizarAreas(esPreescolar, esPrimaria, dato.grados === 'Todos'); 
+            window.actualizarAreas(esPreescolar, esPrimaria, dato.grados === 'Todos'); 
             setTimeout(() => { document.getElementById('inputArea').value = dato.area; }, 50);
 
             document.getElementById('inputTema').value = dato.tema;
@@ -466,7 +559,7 @@
             const checkboxes = document.querySelectorAll('.grado-checkbox');
             checkboxes.forEach(cb => { cb.checked = dato.grados.includes(cb.value) || dato.grados === "Todos"; });
             if (dato.grados === "Todos") document.querySelector('input[value="Todos"]').checked = true;
-            actualizarTextoGrados();
+            window.actualizarTextoGrados();
         };
 
         window.cancelarEdicion = () => {
@@ -481,67 +574,6 @@
             document.getElementById('inputObs').value = '';
         };
 
-        window.guardarEnNube = async () => {
-            const fecha = document.getElementById('inputFecha').value;
-            let grados = document.getElementById('textoGradosSeleccionados').textContent;
-            const area = document.getElementById('inputArea').value;
-            const tema = document.getElementById('inputTema').value;
-            const obs = document.getElementById('inputObs').value;
-            const placeholderArea = document.querySelector('#inputArea option[disabled]').value;
-
-            const areasExcepcion = ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS", "ACTIVIDADES COMPLEMENTARIAS"];
-            const esExcepcion = areasExcepcion.includes(area);
-
-            if (!fecha || !tema || area === placeholderArea) {
-                mostrarError("Faltan datos obligatorios (Fecha, Tema o Área).");
-                return; 
-            }
-
-            if (!esExcepcion) {
-                if (grados === "Seleccionar..." || grados.trim() === "") {
-                    mostrarError("Falta: Seleccionar el Grado.");
-                    return; 
-                }
-            } else {
-                if (grados === "Seleccionar...") grados = "No Aplica";
-            }
-
-            const fechaObj = new Date(fecha + 'T00:00:00'); 
-            let fechaTexto = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-            fechaTexto = fechaTexto.replace(',', ''); 
-            fechaTexto = fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1);
-            
-            const datosGuardar = {
-                fechaRaw: fecha, fechaFormateada: fechaTexto, grados, area, tema, obs, timestamp: Date.now()
-            };
-
-            try {
-                if (window.idEdicionActual) {
-                    await updateDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', window.idEdicionActual), datosGuardar);
-                    cancelarEdicion();
-                } else {
-                    await addDoc(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'), datosGuardar);
-                    document.getElementById('inputTema').value = '';
-                    document.getElementById('inputObs').value = '';
-                }
-            } catch (error) { mostrarError("Fallo al guardar: " + error.message); }
-        };
-
-        window.borrarDato = async (id) => {
-             showConfirmModal("Confirmar Eliminación", "¿Estás seguro?", async (confirmed) => {
-                if (confirmed) {
-                    try { 
-                        await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id)); 
-                        if(window.idEdicionActual === id) cancelarEdicion();
-                    } catch (e) { mostrarError("Fallo al borrar: " + e.message); }
-                }
-            });
-        };
-
-        document.getElementById('inputFecha').valueAsDate = new Date();
-        lucide.createIcons();
-    </script>
-    <script>
         function toggleDropdown(id) { 
             const d = document.getElementById(id);
             d.classList.toggle("show");
@@ -556,10 +588,10 @@
         
         function seleccionarTodos(source) {
             document.querySelectorAll('.grado-checkbox').forEach(cb => cb.checked = source.checked);
-            actualizarTextoGrados();
+            window.actualizarTextoGrados();
         }
 
-        function actualizarTextoGrados() {
+        window.actualizarTextoGrados = () => {
             const cbs = document.querySelectorAll('.grado-checkbox:checked');
             const vals = Array.from(cbs).map(cb => cb.value);
             const btn = document.getElementById('textoGradosSeleccionados');
@@ -582,13 +614,13 @@
                 btn.textContent = vals.join(", "); 
                 if(allCb) allCb.checked = false;
             }
-            actualizarAreas(hayPreescolar, hayPrimaria, vals.includes('Todos'));
+            window.actualizarAreas(hayPreescolar, hayPrimaria, vals.includes('Todos'));
         }
 
         const opPrimaria = `<optgroup label="ÁREAS"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
         const opPreescolar = `<optgroup label="DIMENSIONES"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option></optgroup>`;
 
-        function actualizarAreas(hayPre, hayOtros, esTodos) {
+        window.actualizarAreas = (hayPre, hayOtros, esTodos) => {
             const sel = document.getElementById('inputArea');
             const valorActual = sel.value; 
             let opciones = '<option value="" selected disabled>-- SELECCIONAR ÁREA --</option>';
@@ -598,7 +630,7 @@
             const existe = Array.from(sel.options).some(op => op.value === valorActual);
             if(existe) sel.value = valorActual;
         }
-        actualizarAreas(false, true, false); 
+        window.actualizarAreas(false, true, false); 
         
         window.actualizarAreasFiltro = () => {
             const selFiltroGrado = document.getElementById('filtroGrado');
@@ -613,10 +645,9 @@
             selFiltroArea.innerHTML = opciones;
             const existe = Array.from(selFiltroArea.options).some(op => op.value === valorActual);
             if(existe) selFiltroArea.value = valorActual;
-            filtrarTabla(); 
         };
 
-        function descargarPDF() {
+        window.descargarPDF = () => {
             const btn = document.getElementById('btnExportar');
             const txtOriginal = btn.innerHTML;
             btn.innerHTML = `<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Generando...`;
@@ -626,10 +657,9 @@
             const elemento = document.getElementById('contenedorExportar');
             const headerWeb = document.getElementById('headerWeb');
             const headerPDF = document.getElementById('headerPDF');
-            const tablaWrapper = document.getElementById('contenedorTablaWrapper');
             
-            const ocultos = ['seccionFormulario', 'footerApp', 'cajaError', 'seccionBusqueda', 'confirmModal']; 
-            ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+            document.getElementById('vistaPrincipal').style.display = 'none';
+            document.getElementById('vistaCompilacion').classList.remove('hidden');
             document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
             
             headerWeb.style.display = 'none';
@@ -639,40 +669,37 @@
             elemento.classList.add('pdf-mode-active');
 
             const opt = { 
-                margin: [0.3, 0.3, 0.3, 0.3], 
+                margin: [0.3, 0.4, 0.3, 0.4], 
                 filename: 'Diario_Procesos.pdf', 
                 image: { type: 'jpeg', quality: 0.98 }, 
                 html2canvas: { scale: 2, useCORS: true, logging: false }, 
-                pagebreak: { mode: ['css'] }, // SOLO MODO CSS para respetar page-break-inside
+                pagebreak: { mode: ['css'] }, 
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } 
             };
 
             html2pdf().set(opt).from(elemento).save()
-            .then(() => restaurarVista(ocultos, btn, txtOriginal, headerWeb, headerPDF, tablaWrapper, elemento))
+            .then(() => restaurarVista(btn, txtOriginal, headerWeb, headerPDF, elemento))
             .catch(err => {
                 console.error(err);
                 alert("Error al generar PDF.");
-                restaurarVista(ocultos, btn, txtOriginal, headerWeb, headerPDF, tablaWrapper, elemento);
+                restaurarVista(btn, txtOriginal, headerWeb, headerPDF, elemento);
             });
         }
 
-        function restaurarVista(ocultos, btn, txtOriginal, headerWeb, headerPDF, tablaWrapper, elemento) {
-            ocultos.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
+        function restaurarVista(btn, txtOriginal, headerWeb, headerPDF, elemento) {
             document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
-
+            
             headerWeb.style.display = '';
             headerPDF.classList.add('hidden');
             headerPDF.classList.remove('flex');
             
             elemento.classList.remove('pdf-mode-active');
-
-            filtrarTabla(); 
+            
             btn.innerHTML = txtOriginal;
             btn.disabled = false;
             lucide.createIcons();
         }
-    </script>
-    <script>
+        
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/Diariodeprocesos2026/sw.js').catch(error => console.error(error));

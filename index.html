@@ -76,12 +76,10 @@
             <div id="statusDot" class="w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white"></div>
         </div>
 
-        <!-- Header Web -->
         <header id="headerWeb" class="bg-[#548235] text-white p-6 text-center">
             <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wide">Diario de Campo Docente</h1>
         </header>
 
-        <!-- Header PDF -->
         <div id="headerPDF" class="hidden flex-row items-center gap-4 p-4 border-b-2 border-[#548235] w-full mb-0 pdf-header-color header-pdf-bg">
             <div class="flex-shrink-0 w-24 h-24 flex items-center justify-center">
                 <img src="escudo.png" onerror="this.style.display='none'" alt="Escudo" class="w-full h-full object-contain">
@@ -95,13 +93,11 @@
             </div>
         </div>
         
-        <!-- Caja Error -->
         <div id="cajaError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mx-4 mt-4 hidden no-print">
             <strong class="font-bold">Aviso:</strong> <span id="mensajeError"></span>
             <span onclick="document.getElementById('cajaError').classList.add('hidden')" class="absolute top-0 right-0 px-4 py-3 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></span>
         </div>
 
-        <!-- VISTA PRINCIPAL -->
         <div id="vistaPrincipal">
             <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print">
                 <h2 class="text-lg font-bold text-[#548235] mb-4 border-b border-[#548235] pb-1">Nuevo Registro</h2>
@@ -128,10 +124,17 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex flex-col lg:col-span-7">
+                    
+                    <div class="flex flex-col lg:col-span-7 relative">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área / Asignatura</label>
-                        <select id="inputArea" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase font-medium"></select>
+                        <button type="button" onclick="toggleDropdown('dropdownAreas')" id="btnAreas" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center focus:ring-2 focus:ring-[#548235]">
+                            <span id="textoAreasSeleccionadas" class="truncate text-sm font-medium uppercase">SELECCIONAR ÁREA...</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500"></i>
+                        </button>
+                        <div id="dropdownAreas" class="dropdown-content p-2">
+                            </div>
                     </div>
+                    
                     <div class="flex flex-col lg:col-span-12">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Tema / Actividad</label>
                         <textarea id="inputTema" rows="2" placeholder="Describe la actividad..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none"></textarea>
@@ -160,7 +163,6 @@
             </section>
         </div>
 
-        <!-- VISTA COMPILACIÓN -->
         <div id="vistaCompilacion" class="hidden">
             
             <div class="bg-gray-100 p-3 border-b border-gray-300 flex flex-col md:flex-row justify-between items-center gap-3 sticky top-0 z-20 no-print shadow-sm">
@@ -205,7 +207,6 @@
                 </div>
             </div>
 
-            <!-- TABLA -->
             <div class="p-4 md:p-6 overflow-x-auto" id="contenedorTablaWrapper">
                 <table class="w-full border-collapse border border-black" id="tablaDiario">
                     <thead>
@@ -341,15 +342,19 @@
         window.guardarEnNube = async () => {
             const fecha = document.getElementById('inputFecha').value;
             let grados = document.getElementById('textoGradosSeleccionados').textContent;
-            const area = document.getElementById('inputArea').value;
+            
+            // CAMBIO: Obtener áreas del texto del botón (que contiene la lista unida por comas)
+            let area = document.getElementById('textoAreasSeleccionadas').textContent;
             const tema = document.getElementById('inputTema').value;
             const obs = document.getElementById('inputObs').value;
-            const placeholderArea = document.querySelector('#inputArea option[disabled]').value;
+            
+            const textoPlaceholderArea = "SELECCIONAR ÁREA...";
 
             const areasExcepcion = ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS", "ACTIVIDADES COMPLEMENTARIAS"];
-            const esExcepcion = areasExcepcion.includes(area);
+            // Verificamos si alguna de las áreas seleccionadas es excepción
+            const esExcepcion = areasExcepcion.some(ex => area.includes(ex));
 
-            if (!fecha || !tema || area === placeholderArea) {
+            if (!fecha || !tema || area === textoPlaceholderArea || area === "") {
                 mostrarError("Faltan datos obligatorios.");
                 return; 
             }
@@ -458,13 +463,6 @@
                 document.getElementById('mensajeVacio').classList.remove('hidden');
             } else {
                 let ultimaFecha = "";
-                // Si orden es descendente, fecha arriba es la nueva. Si es ascendente, es la vieja.
-                // En ambos casos comparamos con la "ultimaFecha" procesada para saber si agrupar visualmente o no.
-                
-                // IMPORTANTE: Para numerar correctamente según orden visual
-                // Si es ASC (antiguo primero), el primero es 1.
-                // Si es DESC (nuevo primero), el primero es N.
-                // Para simplificar la visualización y no confundir, enumeraremos del 1 al N según se muestran en pantalla.
                 let numeroClase = 1; 
                 
                 datos.forEach(dato => {
@@ -522,7 +520,10 @@
             
             const datosFiltrados = window.TODOS_LOS_REGISTROS.filter(dato => {
                 const coincideGrado = !filtroGrado || (filtroGrado === 'Todos' && dato.grados.includes('Todos')) || dato.grados.includes(filtroGrado);
-                const coincideArea = !filtroArea || dato.area === filtroArea;
+                // El filtro sigue siendo coincidencia exacta, o parcial si se desea. 
+                // Si guardamos "Matemáticas, Inglés", y filtramos "Matemáticas", 'dato.area === filtroArea' fallará.
+                // Mejor usamos 'includes' para que si filtro Matemáticas aparezcan las combinadas.
+                const coincideArea = !filtroArea || dato.area.includes(filtroArea);
                 return coincideGrado && coincideArea;
             });
             
@@ -547,19 +548,24 @@
             document.getElementById('btnCancelar').classList.remove('hidden');
 
             document.getElementById('inputFecha').value = dato.fechaRaw;
-            const esPreescolar = dato.grados.includes('Preescolar');
-            const esPrimaria = dato.grados.includes('1°') || dato.grados.includes('2°') || dato.grados.includes('3°') || dato.grados.includes('4°') || dato.grados.includes('5°') || dato.grados.includes('Todos');
             
-            window.actualizarAreas(esPreescolar, esPrimaria, dato.grados === 'Todos'); 
-            setTimeout(() => { document.getElementById('inputArea').value = dato.area; }, 50);
-
-            document.getElementById('inputTema').value = dato.tema;
-            document.getElementById('inputObs').value = dato.obs;
-
+            // Grados
             const checkboxes = document.querySelectorAll('.grado-checkbox');
             checkboxes.forEach(cb => { cb.checked = dato.grados.includes(cb.value) || dato.grados === "Todos"; });
             if (dato.grados === "Todos") document.querySelector('input[value="Todos"]').checked = true;
-            window.actualizarTextoGrados();
+            window.actualizarTextoGrados(); // Esto disparará actualizarAreas()
+
+            // Áreas (Necesita un pequeño retardo para que actualizarAreas construya el DOM primero)
+            setTimeout(() => {
+                const areasGuardadas = dato.area.split(',').map(s => s.trim());
+                document.querySelectorAll('.area-checkbox').forEach(cb => {
+                    cb.checked = areasGuardadas.includes(cb.value);
+                });
+                window.actualizarTextoAreas();
+            }, 50);
+
+            document.getElementById('inputTema').value = dato.tema;
+            document.getElementById('inputObs').value = dato.obs;
         };
 
         window.cancelarEdicion = () => {
@@ -572,6 +578,10 @@
             document.getElementById('btnCancelar').classList.add('hidden');
             document.getElementById('inputTema').value = '';
             document.getElementById('inputObs').value = '';
+            
+            // Resetear Areas
+            document.querySelectorAll('.area-checkbox').forEach(cb => cb.checked = false);
+            window.actualizarTextoAreas();
         };
 
         function toggleDropdown(id) { 
@@ -582,6 +592,10 @@
         window.onclick = function(e) { 
             if (!e.target.closest('#btnGrados') && !e.target.closest('#dropdownGrados')) { 
                 document.getElementById('dropdownGrados').classList.remove('show');
+            }
+            // Cerrar dropdown Areas
+            if (!e.target.closest('#btnAreas') && !e.target.closest('#dropdownAreas')) { 
+                document.getElementById('dropdownAreas').classList.remove('show');
             } 
             if (e.target.closest('#confirmModal') && e.target.id !== 'confirmCancel' && e.target.id !== 'confirmAction') { e.preventDefault(); }
         }
@@ -617,21 +631,76 @@
             window.actualizarAreas(hayPreescolar, hayPrimaria, vals.includes('Todos'));
         }
 
+        // --- LÓGICA DE ÁREAS (NUEVA) ---
+
+        // Función para actualizar texto del botón de Áreas
+        window.actualizarTextoAreas = () => {
+            const cbs = document.querySelectorAll('.area-checkbox:checked');
+            const vals = Array.from(cbs).map(cb => cb.value);
+            const btn = document.getElementById('textoAreasSeleccionadas');
+            
+            if (vals.length === 0) { 
+                btn.textContent = "SELECCIONAR ÁREA..."; 
+            } else { 
+                btn.textContent = vals.join(", "); 
+            }
+        }
+
+        // Estructuras de datos para generar checkboxes en lugar de Options
+        const gruposPrimaria = [
+            { titulo: "ÁREAS", items: ["INGLÉS", "MATEMÁTICAS", "ESPAÑOL (LENGUAJE)", "CIENCIAS NATURALES", "CIENCIAS SOCIALES", "ARTÍSTICA", "EDUCACIÓN FÍSICA", "ÉTICA Y VALORES", "RELIGIÓN", "TECNOLOGÍA E INFORMÁTICA"] },
+            { titulo: "PROYECTOS", items: ["ARTESANOS CREATIVOS (ARTES)", "RECREA TU MENTE (LÚDICO-DEPORTIVO)", "LEE-YENDO MÁS ALLÁ...", "ALIMENTA TU CUERPO Y TU MENTE", "MI CUERPO COMUNICA"] },
+            { titulo: "", items: ["JORNADA ÚNICA"] },
+            { titulo: "ESPECIALES", items: ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS"] }
+        ];
+
+        const gruposPreescolar = [
+            { titulo: "DIMENSIONES", items: ["DIMENSIÓN SOCIOAFECTIVA", "DIMENSIÓN CORPORAL", "DIMENSIÓN COGNITIVA", "DIMENSIÓN COMUNICATIVA", "DIMENSIÓN CREATIVA", "DIMENSIÓN ESPIRITUAL", "DIMENSIÓN ÉTICA"] },
+            { titulo: "PROYECTOS", items: ["ARTESANOS CREATIVOS (ARTES)", "RECREA TU MENTE", "LEE-YENDO MÁS ALLÁ...", "ALIMENTA TU CUERPO Y TU MENTE", "MI CUERPO COMUNICA"] },
+            { titulo: "", items: ["JORNADA ÚNICA"] },
+            { titulo: "ESPECIALES", items: ["INSTITUCIONAL"] }
+        ];
+
+        // Función auxiliar para generar HTML de checkboxes
+        function generarCheckboxesAreas(grupos) {
+            let html = '';
+            grupos.forEach(grupo => {
+                if(grupo.titulo) {
+                    html += `<div class="font-bold text-xs text-gray-500 uppercase mt-2 mb-1 px-2 border-b border-gray-100">${grupo.titulo}</div>`;
+                }
+                grupo.items.forEach(item => {
+                    html += `<label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                                <input type="checkbox" value="${item}" class="area-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoAreas()">
+                                <span class="text-sm font-medium">${item}</span>
+                             </label>`;
+                });
+            });
+            return html;
+        }
+
+        // Constantes para el FILTRO (Se mantienen como options standard)
         const opPrimaria = `<optgroup label="ÁREAS"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
         const opPreescolar = `<optgroup label="DIMENSIONES"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option></optgroup>`;
 
         window.actualizarAreas = (hayPre, hayOtros, esTodos) => {
-            const sel = document.getElementById('inputArea');
-            const valorActual = sel.value; 
-            let opciones = '<option value="" selected disabled>-- SELECCIONAR ÁREA --</option>';
+            const divDropdown = document.getElementById('dropdownAreas');
+            // Guardamos selección actual si es posible (complicado al cambiar de grupo, mejor resetear o dejar vacío)
+            
             const usarPreescolar = hayPre && !hayOtros && !esTodos;
-            opciones += usarPreescolar ? opPreescolar : opPrimaria;
-            sel.innerHTML = opciones;
-            const existe = Array.from(sel.options).some(op => op.value === valorActual);
-            if(existe) sel.value = valorActual;
+            
+            // Generar Checkboxes
+            if (usarPreescolar) {
+                divDropdown.innerHTML = generarCheckboxesAreas(gruposPreescolar);
+            } else {
+                divDropdown.innerHTML = generarCheckboxesAreas(gruposPrimaria);
+            }
+            
+            // Resetear texto botón
+            window.actualizarTextoAreas();
         }
         window.actualizarAreas(false, true, false); 
         
+        // Esta función es solo para el FILTRO (Select normal)
         window.actualizarAreasFiltro = () => {
             const selFiltroGrado = document.getElementById('filtroGrado');
             const selFiltroArea = document.getElementById('filtroArea');
@@ -708,5 +777,3 @@
     </script>
 </body>
 </html>
-
-

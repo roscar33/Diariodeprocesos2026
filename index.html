@@ -22,6 +22,10 @@
         tr { page-break-inside: avoid !important; page-break-after: auto !important; }
         table { page-break-inside: auto !important; }
 
+        /* --- AJUSTE: repetir thead/tfoot en cada página del PDF --- */
+        thead { display: table-header-group !important; }
+        tfoot { display: table-footer-group !important; }
+
         .header-verde-tabla {
             background-color: #548235 !important;
             color: white !important;
@@ -59,10 +63,21 @@
             border: none !important;
             box-shadow: none !important;
             background: white !important;
+
+            /* --- AJUSTES: evitar recortes y asegurar altura completa --- */
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
         }
         .pdf-mode-active #contenedorTablaWrapper { overflow: visible !important; }
         .pdf-mode-active table { width: 100% !important; table-layout: fixed !important; }
         .pdf-mode-active td, .pdf-mode-active th { white-space: normal !important; word-wrap: break-word !important; font-size: 11px !important; }
+
+        /* --- AJUSTES EXTRA: mejorar paginación y evitar cortes raros --- */
+        .pdf-mode-active #tablaDiario { overflow: visible !important; }
+        .pdf-mode-active td { overflow: visible !important; }
+        .pdf-mode-active td > * { break-inside: auto; }
+
         .pdf-header-color { background-color: #92d050 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         .pdf-table-header-color { background-color: #548235 !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
@@ -411,7 +426,69 @@
     </script>
     <script>
         // --- LOGICA UI ---
-        
+
+        /* ==============================
+           AJUSTE: utilidades para texto
+           - Párrafos
+           - Viñetas
+           - Escapado HTML seguro
+        ============================== */
+        function escapeHTML(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatearTextoMultilinea(texto) {
+            const t = String(texto ?? '').replace(/\r\n/g, '\n');
+            if (!t.includes('\n')) return `<p>${escapeHTML(t)}</p>`;
+
+            const lineas = t.split('\n');
+            let html = '';
+            let enLista = false;
+
+            const abrirLista = () => {
+                if (!enLista) {
+                    enLista = true;
+                    html += `<ul style="list-style: disc; padding-left: 18px; margin: 0;">`;
+                }
+            };
+            const cerrarLista = () => {
+                if (enLista) {
+                    enLista = false;
+                    html += `</ul>`;
+                }
+            };
+
+            for (const raw of lineas) {
+                const linea = raw.trimEnd();
+                const l = linea.trim();
+
+                if (l === '') {
+                    cerrarLista();
+                    html += `<div style="height:4px;"></div>`;
+                    continue;
+                }
+
+                const esBullet = /^(-|\*|•)\s+/.test(l);
+                if (esBullet) {
+                    abrirLista();
+                    const item = l.replace(/^(-|\*|•)\s+/, '');
+                    html += `<li style="margin:0; padding:0;">${escapeHTML(item)}</li>`;
+                    continue;
+                }
+
+                cerrarLista();
+                html += `<p style="margin:0 0 4px 0;">${escapeHTML(l)}</p>`;
+            }
+
+            cerrarLista();
+            return html;
+        }
+
         window.entrarCompilacion = () => {
             document.getElementById('vistaPrincipal').classList.add('hidden');
             document.getElementById('vistaCompilacion').classList.remove('hidden');
@@ -490,8 +567,11 @@
                 <td class="${css} font-bold text-[#548235] capitalize">${contenidoFecha}</td>
                 <td class="${css} font-semibold">${dato.grados}</td>
                 <td class="${css} uppercase text-xs font-semibold">${dato.area}</td>
-                <td class="${css} ${estiloPendiente}">${dato.tema}</td>
-                <td class="${css} ${estiloPendiente}">${dato.obs}</td>
+
+                <!-- AJUSTE: Tema/Obs con viñetas + párrafos -->
+                <td class="${css} ${estiloPendiente}">${formatearTextoMultilinea(dato.tema)}</td>
+                <td class="${css} ${estiloPendiente}">${formatearTextoMultilinea(dato.obs)}</td>
+
                 <td class="${css} text-center no-print border-none flex gap-1 justify-center w-24">
                     <button class="btn-editar text-blue-600 hover:bg-blue-100 p-2 rounded" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>
                     <button class="btn-borrar text-red-500 hover:bg-red-100 p-2 rounded" title="Borrar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -520,9 +600,6 @@
             
             const datosFiltrados = window.TODOS_LOS_REGISTROS.filter(dato => {
                 const coincideGrado = !filtroGrado || (filtroGrado === 'Todos' && dato.grados.includes('Todos')) || dato.grados.includes(filtroGrado);
-                // El filtro sigue siendo coincidencia exacta, o parcial si se desea. 
-                // Si guardamos "Matemáticas, Inglés", y filtramos "Matemáticas", 'dato.area === filtroArea' fallará.
-                // Mejor usamos 'includes' para que si filtro Matemáticas aparezcan las combinadas.
                 const coincideArea = !filtroArea || dato.area.includes(filtroArea);
                 return coincideGrado && coincideArea;
             });
@@ -549,13 +626,11 @@
 
             document.getElementById('inputFecha').value = dato.fechaRaw;
             
-            // Grados
             const checkboxes = document.querySelectorAll('.grado-checkbox');
             checkboxes.forEach(cb => { cb.checked = dato.grados.includes(cb.value) || dato.grados === "Todos"; });
             if (dato.grados === "Todos") document.querySelector('input[value="Todos"]').checked = true;
-            window.actualizarTextoGrados(); // Esto disparará actualizarAreas()
+            window.actualizarTextoGrados();
 
-            // Áreas (Necesita un pequeño retardo para que actualizarAreas construya el DOM primero)
             setTimeout(() => {
                 const areasGuardadas = dato.area.split(',').map(s => s.trim());
                 document.querySelectorAll('.area-checkbox').forEach(cb => {
@@ -579,7 +654,6 @@
             document.getElementById('inputTema').value = '';
             document.getElementById('inputObs').value = '';
             
-            // Resetear Areas
             document.querySelectorAll('.area-checkbox').forEach(cb => cb.checked = false);
             window.actualizarTextoAreas();
         };
@@ -593,7 +667,6 @@
             if (!e.target.closest('#btnGrados') && !e.target.closest('#dropdownGrados')) { 
                 document.getElementById('dropdownGrados').classList.remove('show');
             }
-            // Cerrar dropdown Areas
             if (!e.target.closest('#btnAreas') && !e.target.closest('#dropdownAreas')) { 
                 document.getElementById('dropdownAreas').classList.remove('show');
             } 
@@ -631,9 +704,6 @@
             window.actualizarAreas(hayPreescolar, hayPrimaria, vals.includes('Todos'));
         }
 
-        // --- LÓGICA DE ÁREAS (NUEVA) ---
-
-        // Función para actualizar texto del botón de Áreas
         window.actualizarTextoAreas = () => {
             const cbs = document.querySelectorAll('.area-checkbox:checked');
             const vals = Array.from(cbs).map(cb => cb.value);
@@ -646,7 +716,6 @@
             }
         }
 
-        // Estructuras de datos para generar checkboxes en lugar de Options
         const gruposPrimaria = [
             { titulo: "ÁREAS", items: ["INGLÉS", "MATEMÁTICAS", "ESPAÑOL (LENGUAJE)", "CIENCIAS NATURALES", "CIENCIAS SOCIALES", "ARTÍSTICA", "EDUCACIÓN FÍSICA", "ÉTICA Y VALORES", "RELIGIÓN", "TECNOLOGÍA E INFORMÁTICA"] },
             { titulo: "PROYECTOS", items: ["ARTESANOS CREATIVOS (ARTES)", "RECREA TU MENTE (LÚDICO-DEPORTIVO)", "LEE-YENDO MÁS ALLÁ...", "ALIMENTA TU CUERPO Y TU MENTE", "MI CUERPO COMUNICA"] },
@@ -661,7 +730,6 @@
             { titulo: "ESPECIALES", items: ["INSTITUCIONAL"] }
         ];
 
-        // Función auxiliar para generar HTML de checkboxes
         function generarCheckboxesAreas(grupos) {
             let html = '';
             grupos.forEach(grupo => {
@@ -678,29 +746,23 @@
             return html;
         }
 
-        // Constantes para el FILTRO (Se mantienen como options standard)
         const opPrimaria = `<optgroup label="ÁREAS"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
         const opPreescolar = `<optgroup label="DIMENSIONES"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option></optgroup>`;
 
         window.actualizarAreas = (hayPre, hayOtros, esTodos) => {
             const divDropdown = document.getElementById('dropdownAreas');
-            // Guardamos selección actual si es posible (complicado al cambiar de grupo, mejor resetear o dejar vacío)
-            
             const usarPreescolar = hayPre && !hayOtros && !esTodos;
             
-            // Generar Checkboxes
             if (usarPreescolar) {
                 divDropdown.innerHTML = generarCheckboxesAreas(gruposPreescolar);
             } else {
                 divDropdown.innerHTML = generarCheckboxesAreas(gruposPrimaria);
             }
             
-            // Resetear texto botón
             window.actualizarTextoAreas();
         }
         window.actualizarAreas(false, true, false); 
         
-        // Esta función es solo para el FILTRO (Select normal)
         window.actualizarAreasFiltro = () => {
             const selFiltroGrado = document.getElementById('filtroGrado');
             const selFiltroArea = document.getElementById('filtroArea');
@@ -737,12 +799,26 @@
             
             elemento.classList.add('pdf-mode-active');
 
+            /* AJUSTE: asegurar scroll arriba antes de capturar */
+            const wrap = document.getElementById('contenedorTablaWrapper');
+            if (wrap) wrap.scrollTop = 0;
+            window.scrollTo(0, 0);
+
             const opt = { 
                 margin: [0.3, 0.4, 0.3, 0.4], 
                 filename: 'Diario_Procesos.pdf', 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true, logging: false }, 
-                pagebreak: { mode: ['css'] }, 
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true, 
+                    logging: false,
+                    backgroundColor: '#ffffff',
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: elemento.scrollWidth,
+                    windowHeight: elemento.scrollHeight
+                }, 
+                pagebreak: { mode: ['css', 'legacy'] }, 
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } 
             };
 

@@ -119,7 +119,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:col-cols-12 gap-4">
                     <div class="flex flex-col lg:col-span-3">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Fecha</label>
-                        <input type="date" id="inputFecha" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase">
+                        <!-- CONFIGURACIÓN DE FECHA FUTURA MANTENIDA -->
+                        <input type="date" id="inputFecha" max="2030-12-31" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase">
                     </div>
                     <div class="flex flex-col lg:col-span-2 relative">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Grado(s)</label>
@@ -194,6 +195,17 @@
 
             <div class="bg-yellow-50 p-4 border-b border-yellow-200 no-print">
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    
+                    <!-- NUEVO: CAMPO DE BÚSQUEDA POR TEXTO -->
+                    <div class="flex flex-col md:col-span-12">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Buscar palabra clave</label>
+                        <div class="relative">
+                            <input type="text" id="filtroTexto" class="w-full p-2 pl-8 border border-yellow-300 rounded bg-white text-sm focus:ring-2 focus:ring-yellow-500 outline-none placeholder-gray-400" placeholder="Buscar en temas, observaciones o áreas..." onkeyup="filtrarTabla()">
+                            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-2 top-2.5"></i>
+                        </div>
+                    </div>
+                    <!-- FIN NUEVO CAMPO -->
+
                     <div class="flex flex-col md:col-span-3">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Filtrar por Grado</label>
                         <select id="filtroGrado" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm" onchange="actualizarAreasFiltro(); filtrarTabla()">
@@ -495,6 +507,7 @@
             
             document.getElementById('filtroGrado').value = "";
             document.getElementById('filtroArea').value = "";
+            document.getElementById('filtroTexto').value = ""; // Limpiar texto al entrar
             document.getElementById('ordenarFecha').value = "desc";
             
             window.actualizarAreasFiltro(); 
@@ -597,11 +610,18 @@
         window.filtrarTabla = () => {
             const filtroGrado = document.getElementById('filtroGrado').value;
             const filtroArea = document.getElementById('filtroArea').value;
+            // NUEVO: Obtener valor del buscador de texto en minúsculas
+            const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
             
             const datosFiltrados = window.TODOS_LOS_REGISTROS.filter(dato => {
                 const coincideGrado = !filtroGrado || (filtroGrado === 'Todos' && dato.grados.includes('Todos')) || dato.grados.includes(filtroGrado);
                 const coincideArea = !filtroArea || dato.area.includes(filtroArea);
-                return coincideGrado && coincideArea;
+                
+                // NUEVO: Lógica de búsqueda textual (busca en tema, observaciones, área o grado)
+                const contenidoDato = (dato.tema + " " + dato.obs + " " + dato.area + " " + dato.grados).toLowerCase();
+                const coincideTexto = !filtroTexto || contenidoDato.includes(filtroTexto);
+
+                return coincideGrado && coincideArea && coincideTexto;
             });
             
             renderizarTabla(datosFiltrados);
@@ -609,6 +629,7 @@
 
         window.limpiarFiltros = () => {
             document.getElementById('filtroGrado').value = "";
+            document.getElementById('filtroTexto').value = ""; // NUEVO: Limpiar caja de texto
             document.getElementById('ordenarFecha').value = "desc";
             window.actualizarAreasFiltro(); 
             window.filtrarTabla();

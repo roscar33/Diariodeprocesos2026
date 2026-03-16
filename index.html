@@ -19,7 +19,8 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* --- CLASES CRÍTICAS PARA PDF --- */
-        tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+        /* CAMBIO APLICADO AQUÍ: avoid por auto */
+        tr { page-break-inside: auto !important; page-break-after: auto !important; }
         table { page-break-inside: auto !important; }
 
         /* --- AJUSTE: repetir thead/tfoot en cada página del PDF --- */
@@ -119,7 +120,6 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:col-cols-12 gap-4">
                     <div class="flex flex-col lg:col-span-3">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Fecha</label>
-                        <!-- CONFIGURACIÓN DE FECHA FUTURA MANTENIDA -->
                         <input type="date" id="inputFecha" max="2030-12-31" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase">
                     </div>
                     <div class="flex flex-col lg:col-span-2 relative">
@@ -196,7 +196,6 @@
             <div class="bg-yellow-50 p-4 border-b border-yellow-200 no-print">
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                     
-                    <!-- NUEVO: CAMPO DE BÚSQUEDA POR TEXTO -->
                     <div class="flex flex-col md:col-span-12">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Buscar palabra clave</label>
                         <div class="relative">
@@ -204,8 +203,6 @@
                             <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-2 top-2.5"></i>
                         </div>
                     </div>
-                    <!-- FIN NUEVO CAMPO -->
-
                     <div class="flex flex-col md:col-span-3">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Filtrar por Grado</label>
                         <select id="filtroGrado" class="w-full p-2 border border-yellow-300 rounded bg-white text-sm" onchange="actualizarAreasFiltro(); filtrarTabla()">
@@ -581,7 +578,6 @@
                 <td class="${css} font-semibold">${dato.grados}</td>
                 <td class="${css} uppercase text-xs font-semibold">${dato.area}</td>
 
-                <!-- AJUSTE: Tema/Obs con viñetas + párrafos -->
                 <td class="${css} ${estiloPendiente}">${formatearTextoMultilinea(dato.tema)}</td>
                 <td class="${css} ${estiloPendiente}">${formatearTextoMultilinea(dato.obs)}</td>
 

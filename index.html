@@ -4,98 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#548235">
-    <title>Diario Docente PWA</title> 
+    <title>Diario Docente PWA</title>
     <link rel="manifest" href="/Diariodeprocesos2026/manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        
         .dropdown-content { display: none; position: absolute; background-color: white; min-width: 100%; box-shadow: 0 8px 16px rgba(0,0,0,0.2); z-index: 50; border: 1px solid #e5e7eb; border-radius: 0.5rem; max-height: 250px; overflow-y: auto; }
         .dropdown-content.show { display: block; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #548235; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* --- CLASES CRÍTICAS PARA PDF --- */
-        /* CAMBIO APLICADO AQUÍ: avoid por auto */
         tr { page-break-inside: auto !important; page-break-after: auto !important; }
         table { page-break-inside: auto !important; }
-
-        /* --- AJUSTE: repetir thead/tfoot en cada página del PDF --- */
         thead { display: table-header-group !important; }
         tfoot { display: table-footer-group !important; }
-
-        .header-verde-tabla {
-            background-color: #548235 !important;
-            color: white !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-
-        @media print { 
+        .header-verde-tabla { background-color: #548235 !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        @media print {
             @page { size: landscape; margin: 0.3cm; }
-            .no-print { display: none !important; } 
-            body { background-color: white; -webkit-print-color-adjust: exact; } 
+            .no-print { display: none !important; }
+            body { background-color: white; -webkit-print-color-adjust: exact; }
             #headerWeb { display: none !important; }
             #headerPDF { display: flex !important; }
             #tablaDiario { width: 100% !important; }
             .header-pdf-bg { background-color: #92d050 !important; -webkit-print-color-adjust: exact; }
             .header-tabla-bg { background-color: #548235 !important; color: white !important; -webkit-print-color-adjust: exact; }
         }
-
-        .highlight-row { 
-            background-color: #fefcbf !important; 
-            border: 2px solid #fbbf24 !important; 
-            animation: highlightFade 3s ease-out forwards;
-        }
-        @keyframes highlightFade {
-            0% { background-color: #fefcbf; }
-            100% { background-color: #fff; }
-        }
-
-        /* --- MODO PDF (JS) - AJUSTE DE MÁRGENES --- */
-        .pdf-mode-active {
-            width: 1000px !important; /* Reducido ligeramente de 1024px para dar aire a los lados */
-            min-width: 1000px !important;
-            margin: 0 auto !important; /* ESTO ES CLAVE: Centra el contenido */
-            padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            background: white !important;
-
-            /* --- AJUSTES: evitar recortes y asegurar altura completa --- */
-            overflow: visible !important;
-            height: auto !important;
-            max-height: none !important;
-        }
+        .highlight-row { background-color: #fefcbf !important; border: 2px solid #fbbf24 !important; animation: highlightFade 3s ease-out forwards; }
+        @keyframes highlightFade { 0% { background-color: #fefcbf; } 100% { background-color: #fff; } }
+        .pdf-mode-active { width: 1000px !important; min-width: 1000px !important; margin: 0 auto !important; padding: 0 !important; border: none !important; box-shadow: none !important; background: white !important; overflow: visible !important; height: auto !important; max-height: none !important; }
         .pdf-mode-active #contenedorTablaWrapper { overflow: visible !important; }
         .pdf-mode-active table { width: 100% !important; table-layout: fixed !important; }
         .pdf-mode-active td, .pdf-mode-active th { white-space: normal !important; word-wrap: break-word !important; font-size: 11px !important; }
-
-        /* --- AJUSTES EXTRA: mejorar paginación y evitar cortes raros --- */
         .pdf-mode-active #tablaDiario { overflow: visible !important; }
         .pdf-mode-active td { overflow: visible !important; }
         .pdf-mode-active td > * { break-inside: auto; }
-
         .pdf-header-color { background-color: #92d050 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         .pdf-table-header-color { background-color: #548235 !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-
     </style>
 </head>
 <body class="p-2 md:p-8 min-h-screen flex flex-col items-center">
-
     <div id="contenedorExportar" class="bg-white w-full max-w-6xl shadow-xl rounded-lg overflow-hidden border border-gray-200 relative transition-all">
-        
         <div class="absolute top-4 right-4 no-print z-10 cursor-pointer" onclick="location.reload()">
             <div id="statusDot" class="w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white"></div>
         </div>
-
         <header id="headerWeb" class="bg-[#548235] text-white p-6 text-center">
             <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wide">Diario de Campo Docente</h1>
         </header>
-
         <div id="headerPDF" class="hidden flex-row items-center gap-4 p-4 border-b-2 border-[#548235] w-full mb-0 pdf-header-color header-pdf-bg">
             <div class="flex-shrink-0 w-24 h-24 flex items-center justify-center">
                 <img src="escudo.png" onerror="this.style.display='none'" alt="Escudo" class="w-full h-full object-contain">
@@ -108,12 +65,10 @@
                 </div>
             </div>
         </div>
-        
         <div id="cajaError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mx-4 mt-4 hidden no-print">
             <strong class="font-bold">Aviso:</strong> <span id="mensajeError"></span>
             <span onclick="document.getElementById('cajaError').classList.add('hidden')" class="absolute top-0 right-0 px-4 py-3 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></span>
         </div>
-
         <div id="vistaPrincipal">
             <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print">
                 <h2 class="text-lg font-bold text-[#548235] mb-4 border-b border-[#548235] pb-1">Nuevo Registro</h2>
@@ -140,17 +95,14 @@
                             </div>
                         </div>
                     </div>
-                    
                     <div class="flex flex-col lg:col-span-7 relative">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área / Asignatura</label>
                         <button type="button" onclick="toggleDropdown('dropdownAreas')" id="btnAreas" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center focus:ring-2 focus:ring-[#548235]">
                             <span id="textoAreasSeleccionadas" class="truncate text-sm font-medium uppercase">SELECCIONAR ÁREA...</span>
                             <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500"></i>
                         </button>
-                        <div id="dropdownAreas" class="dropdown-content p-2">
-                            </div>
+                        <div id="dropdownAreas" class="dropdown-content p-2"></div>
                     </div>
-                    
                     <div class="flex flex-col lg:col-span-12">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Tema / Actividad</label>
                         <textarea id="inputTema" rows="2" placeholder="Describe la actividad..." class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none"></textarea>
@@ -169,33 +121,27 @@
                     </button>
                 </div>
             </section>
-            
             <section class="p-6 bg-yellow-50 border-t border-yellow-200 text-center no-print">
                 <button onclick="entrarCompilacion()" class="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 px-8 rounded-lg flex items-center justify-center gap-3 shadow-lg transition-transform hover:scale-105 border-2 border-yellow-800 mx-auto">
-                    <i data-lucide="book-open" class="w-8 h-8"></i> 
+                    <i data-lucide="book-open" class="w-8 h-8"></i>
                     <span class="text-lg">CONSULTAR / FILTRAR DIARIO</span>
                 </button>
                 <p class="text-yellow-800 mt-2 text-sm">Accede aquí para buscar, filtrar y descargar el PDF.</p>
             </section>
         </div>
-
         <div id="vistaCompilacion" class="hidden">
-            
             <div class="bg-gray-100 p-3 border-b border-gray-300 flex flex-col md:flex-row justify-between items-center gap-3 sticky top-0 z-20 no-print shadow-sm">
                 <button onclick="salirCompilacion()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded flex items-center gap-2 text-sm w-full md:w-auto justify-center">
                     <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver
                 </button>
-                
                 <div class="flex gap-2 w-full md:w-auto">
                     <button onclick="irAlFinal()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 text-sm">
                         <i data-lucide="arrow-down-circle" class="w-4 h-4"></i> Ir al Final
                     </button>
                 </div>
             </div>
-
             <div class="bg-yellow-50 p-4 border-b border-yellow-200 no-print">
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                    
                     <div class="flex flex-col md:col-span-12">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Buscar palabra clave</label>
                         <div class="relative">
@@ -224,13 +170,12 @@
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                         <button onclick="limpiarFiltros()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center gap-2 text-sm border border-gray-300">
-                             <i data-lucide="filter-off" class="w-4 h-4"></i> Limpiar
+                        <button onclick="limpiarFiltros()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center gap-2 text-sm border border-gray-300">
+                            <i data-lucide="filter-off" class="w-4 h-4"></i> Limpiar
                         </button>
                     </div>
                 </div>
             </div>
-
             <div class="p-4 md:p-6 overflow-x-auto" id="contenedorTablaWrapper">
                 <table class="w-full border-collapse border border-black" id="tablaDiario">
                     <thead>
@@ -246,13 +191,11 @@
                     </thead>
                     <tbody id="cuerpoTabla"></tbody>
                 </table>
-                
                 <div id="loadingData" class="loader hidden"></div>
                 <div id="mensajeVacio" class="text-center py-10 text-gray-400 italic hidden">
                     <i data-lucide="cloud-off" class="w-12 h-12 mx-auto mb-2 opacity-20"></i><p>No hay registros visibles.</p>
                 </div>
             </div>
-
             <footer id="footerApp" class="bg-gray-50 p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
                 <div class="text-xs text-gray-400 font-mono">ID: ********</div>
                 <button id="btnExportar" onclick="descargarPDF()" class="w-full sm:w-auto bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-transform">
@@ -261,7 +204,6 @@
             </footer>
         </div>
     </div>
-    
     <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 no-print">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
             <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2" id="confirmTitle"><i data-lucide="alert-triangle" class="w-6 h-6 text-red-500"></i> Confirmar</h3>
@@ -272,21 +214,17 @@
             </div>
         </div>
     </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
-        
         window.TODOS_LOS_REGISTROS = [];
         let globalConfirmCallback = null;
-        
         function mostrarError(mensaje) {
             document.getElementById('cajaError').classList.remove('hidden');
             document.getElementById('mensajeError').textContent = mensaje;
-            setTimeout(() => { document.getElementById('cajaError').classList.add('hidden'); }, 8000); 
+            setTimeout(() => { document.getElementById('cajaError').classList.add('hidden'); }, 8000);
         }
-
         window.showConfirmModal = (title, message, callback) => {
             document.getElementById('confirmTitle').innerHTML = `<i data-lucide="alert-triangle" class="w-6 h-6 text-red-500"></i> ${title}`;
             document.getElementById('confirmMessage').textContent = message;
@@ -294,18 +232,15 @@
             globalConfirmCallback = callback;
             lucide.createIcons();
         }
-
         document.getElementById('confirmCancel').onclick = () => {
             document.getElementById('confirmModal').classList.add('hidden');
             globalConfirmCallback = null;
         };
-
         document.getElementById('confirmAction').onclick = () => {
             document.getElementById('confirmModal').classList.add('hidden');
             if (globalConfirmCallback) globalConfirmCallback(true);
             globalConfirmCallback = null;
         };
-
         const firebaseConfig = {
             apiKey: "AIzaSyB2MJ-jdwQeT6sOfZ21tCrFYzGiuTNOAJ8",
             authDomain: "diariodeprocesos-6f78d.firebaseapp.com",
@@ -314,93 +249,68 @@
             messagingSenderId: "487922338632",
             appId: "1:487922338632:web:7a0d3e38b4dc2ad9b0817d"
         };
-
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const CLAVE_PERSONAL = "Gusanito43@"; 
+        const CLAVE_PERSONAL = "Gusanito43@";
         let unsubscribeSnapshot = null;
-        window.idEdicionActual = null; 
-
+        window.idEdicionActual = null;
         enableIndexedDbPersistence(db).catch((err) => { console.log('Persistencia:', err.code); });
-
         function actualizarEstadoRed() {
             const dot = document.getElementById('statusDot');
-            dot.className = navigator.onLine 
-                ? "w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white" 
-                : "w-4 h-4 rounded-full bg-orange-500 shadow-md border-2 border-white";
+            dot.className = navigator.onLine ? "w-4 h-4 rounded-full bg-green-500 shadow-md border-2 border-white" : "w-4 h-4 rounded-full bg-orange-500 shadow-md border-2 border-white";
         }
         window.addEventListener('online', actualizarEstadoRed);
         window.addEventListener('offline', actualizarEstadoRed);
-        actualizarEstadoRed(); 
-
+        actualizarEstadoRed();
         signInAnonymously(auth).catch((error) => mostrarError("Fallo Auth: " + error.code));
-
         onAuthStateChanged(auth, (user) => { if (user) { lucide.createIcons(); cargarDatosPersonales(); } });
-
         function cargarDatosPersonales() {
             const loading = document.getElementById('loadingData');
-            if(!document.getElementById('vistaCompilacion').classList.contains('hidden')) {
-               loading.classList.remove('hidden');
-               loading.style.display = 'block';
+            if (!document.getElementById('vistaCompilacion').classList.contains('hidden')) {
+                loading.classList.remove('hidden');
+                loading.style.display = 'block';
             }
-
             const q = query(collection(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas'));
             if (unsubscribeSnapshot) unsubscribeSnapshot();
-
             unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
                 loading.style.display = 'none';
                 window.TODOS_LOS_REGISTROS = [];
                 snapshot.forEach(doc => {
                     window.TODOS_LOS_REGISTROS.push({ id: doc.id, ...doc.data(), pendiente: doc.metadata.hasPendingWrites });
                 });
-                
-                if(!document.getElementById('vistaCompilacion').classList.contains('hidden')) {
+                if (!document.getElementById('vistaCompilacion').classList.contains('hidden')) {
                     window.filtrarTabla();
                 }
-                
                 lucide.createIcons();
             }, (error) => { if (navigator.onLine) mostrarError("Error Firebase: " + error.message); });
         }
-
         window.guardarEnNube = async () => {
             const fecha = document.getElementById('inputFecha').value;
             let grados = document.getElementById('textoGradosSeleccionados').textContent;
-            
-            // CAMBIO: Obtener áreas del texto del botón (que contiene la lista unida por comas)
             let area = document.getElementById('textoAreasSeleccionadas').textContent;
             const tema = document.getElementById('inputTema').value;
             const obs = document.getElementById('inputObs').value;
-            
             const textoPlaceholderArea = "SELECCIONAR ÁREA...";
-
             const areasExcepcion = ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS", "ACTIVIDADES COMPLEMENTARIAS"];
-            // Verificamos si alguna de las áreas seleccionadas es excepción
             const esExcepcion = areasExcepcion.some(ex => area.includes(ex));
-
             if (!fecha || !tema || area === textoPlaceholderArea || area === "") {
                 mostrarError("Faltan datos obligatorios.");
-                return; 
+                return;
             }
-
             if (!esExcepcion) {
                 if (grados === "Seleccionar..." || grados.trim() === "") {
                     mostrarError("Seleccionar Grado.");
-                    return; 
+                    return;
                 }
             } else {
                 if (grados === "Seleccionar...") grados = "No Aplica";
             }
-
-            const fechaObj = new Date(fecha + 'T00:00:00'); 
+            const fechaObj = new Date(fecha + 'T00:00:00');
             let fechaTexto = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-            fechaTexto = fechaTexto.replace(',', ''); 
+            fechaTexto = fechaTexto.replace(',', '');
             fechaTexto = fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1);
-            
-            const datosGuardar = {
-                fechaRaw: fecha, fechaFormateada: fechaTexto, grados, area, tema, obs, timestamp: Date.now()
-            };
-
+            const datosGuardar = { fechaRaw: fecha, fechaFormateada: fechaTexto, grados, area, tema, obs, timestamp: Date.now() };
             try {
                 if (window.idEdicionActual) {
                     await updateDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', window.idEdicionActual), datosGuardar);
@@ -415,73 +325,41 @@
                 btn.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> ¡Guardado!`;
                 lucide.createIcons();
                 setTimeout(() => { btn.innerHTML = prevText; lucide.createIcons(); }, 1500);
-
             } catch (error) { mostrarError("Fallo al guardar: " + error.message); }
         };
-
         window.borrarDato = async (id) => {
-             window.showConfirmModal("Confirmar Eliminación", "¿Estás seguro?", async (confirmed) => {
+            window.showConfirmModal("Confirmar Eliminación", "¿Estás seguro?", async (confirmed) => {
                 if (confirmed) {
-                    try { 
-                        await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id)); 
-                        if(window.idEdicionActual === id) window.cancelarEdicion();
+                    try {
+                        await deleteDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', id));
+                        if (window.idEdicionActual === id) window.cancelarEdicion();
                     } catch (e) { mostrarError("Fallo al borrar: " + e.message); }
                 }
             });
         };
-
         document.getElementById('inputFecha').valueAsDate = new Date();
         lucide.createIcons();
     </script>
     <script>
-        // --- LOGICA UI ---
-
-        /* ==============================
-           AJUSTE: utilidades para texto
-           - Párrafos
-           - Viñetas
-           - Escapado HTML seguro
-        ============================== */
         function escapeHTML(str) {
-            return String(str ?? '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+            return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
-
         function formatearTextoMultilinea(texto) {
             const t = String(texto ?? '').replace(/\r\n/g, '\n');
             if (!t.includes('\n')) return `<p>${escapeHTML(t)}</p>`;
-
             const lineas = t.split('\n');
             let html = '';
             let enLista = false;
-
-            const abrirLista = () => {
-                if (!enLista) {
-                    enLista = true;
-                    html += `<ul style="list-style: disc; padding-left: 18px; margin: 0;">`;
-                }
-            };
-            const cerrarLista = () => {
-                if (enLista) {
-                    enLista = false;
-                    html += `</ul>`;
-                }
-            };
-
+            const abrirLista = () => { if (!enLista) { enLista = true; html += `<ul style="list-style: disc; padding-left: 18px; margin: 0;">`; } };
+            const cerrarLista = () => { if (enLista) { enLista = false; html += `</ul>`; } };
             for (const raw of lineas) {
                 const linea = raw.trimEnd();
                 const l = linea.trim();
-
                 if (l === '') {
                     cerrarLista();
                     html += `<div style="height:4px;"></div>`;
                     continue;
                 }
-
                 const esBullet = /^(-|\*|•)\s+/.test(l);
                 if (esBullet) {
                     abrirLista();
@@ -489,148 +367,159 @@
                     html += `<li style="margin:0; padding:0;">${escapeHTML(item)}</li>`;
                     continue;
                 }
-
                 cerrarLista();
                 html += `<p style="margin:0 0 4px 0;">${escapeHTML(l)}</p>`;
             }
-
             cerrarLista();
             return html;
         }
-
-        window.entrarCompilacion = () => {
-            document.getElementById('vistaPrincipal').classList.add('hidden');
-            document.getElementById('vistaCompilacion').classList.remove('hidden');
-            
-            document.getElementById('filtroGrado').value = "";
-            document.getElementById('filtroArea').value = "";
-            document.getElementById('filtroTexto').value = ""; // Limpiar texto al entrar
-            document.getElementById('ordenarFecha').value = "desc";
-            
-            window.actualizarAreasFiltro(); 
-            window.filtrarTabla();
-            window.scrollTo(0,0);
-        };
-
-        window.salirCompilacion = () => {
-            document.getElementById('vistaPrincipal').classList.remove('hidden');
-            document.getElementById('vistaCompilacion').classList.add('hidden');
-            window.scrollTo(0,0);
-        };
-
-        window.irAlFinal = () => {
-            setTimeout(() => {
-                document.getElementById('footerApp').scrollIntoView({ behavior: 'smooth', block: 'end' });
-            }, 100);
-        };
-
-        function renderizarTabla(datos, highlightId = null) {
-            const tbody = document.getElementById('cuerpoTabla');
-            tbody.innerHTML = '';
-            
-            const orden = document.getElementById('ordenarFecha').value; 
-            
-            if(datos.length > 1) {
+        function obtenerDatosFiltradosParaExportar() {
+            const filtroGrado = document.getElementById('filtroGrado').value;
+            const filtroArea = document.getElementById('filtroArea').value;
+            const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
+            const orden = document.getElementById('ordenarFecha').value;
+            const datos = window.TODOS_LOS_REGISTROS.filter(dato => {
+                const coincideGrado = !filtroGrado || (filtroGrado === 'Todos' && dato.grados.includes('Todos')) || dato.grados.includes(filtroGrado);
+                const coincideArea = !filtroArea || dato.area.includes(filtroArea);
+                const contenidoDato = `${dato.tema || ''} ${dato.obs || ''} ${dato.area || ''} ${dato.grados || ''}`.toLowerCase();
+                const coincideTexto = !filtroTexto || contenidoDato.includes(filtroTexto);
+                return coincideGrado && coincideArea && coincideTexto;
+            });
+            if (datos.length > 1) {
                 datos.sort((a, b) => {
                     const dateA = new Date(a.fechaRaw || 0);
                     const dateB = new Date(b.fechaRaw || 0);
                     const timeA = a.timestamp || 0;
                     const timeB = b.timestamp || 0;
-
                     if (dateA.getTime() !== dateB.getTime()) {
                         return orden === 'asc' ? dateA - dateB : dateB - dateA;
                     }
                     return orden === 'asc' ? timeA - timeB : timeB - timeA;
                 });
             }
-
+            return datos;
+        }
+        async function cargarImagenComoDataURL(src) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    } catch (e) { resolve(null); }
+                };
+                img.onerror = () => resolve(null);
+                img.src = src;
+            });
+        }
+        window.entrarCompilacion = () => {
+            document.getElementById('vistaPrincipal').classList.add('hidden');
+            document.getElementById('vistaCompilacion').classList.remove('hidden');
+            document.getElementById('filtroGrado').value = "";
+            document.getElementById('filtroArea').value = "";
+            document.getElementById('filtroTexto').value = "";
+            document.getElementById('ordenarFecha').value = "desc";
+            window.actualizarAreasFiltro();
+            window.filtrarTabla();
+            window.scrollTo(0, 0);
+        };
+        window.salirCompilacion = () => {
+            document.getElementById('vistaPrincipal').classList.remove('hidden');
+            document.getElementById('vistaCompilacion').classList.add('hidden');
+            window.scrollTo(0, 0);
+        };
+        window.irAlFinal = () => {
+            setTimeout(() => { document.getElementById('footerApp').scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
+        };
+        function renderizarTabla(datos, highlightId = null) {
+            const tbody = document.getElementById('cuerpoTabla');
+            tbody.innerHTML = '';
+            const orden = document.getElementById('ordenarFecha').value;
+            if (datos.length > 1) {
+                datos.sort((a, b) => {
+                    const dateA = new Date(a.fechaRaw || 0);
+                    const dateB = new Date(b.fechaRaw || 0);
+                    const timeA = a.timestamp || 0;
+                    const timeB = b.timestamp || 0;
+                    if (dateA.getTime() !== dateB.getTime()) {
+                        return orden === 'asc' ? dateA - dateB : dateB - dateA;
+                    }
+                    return orden === 'asc' ? timeA - timeB : timeB - timeA;
+                });
+            }
             document.getElementById('mensajeVacio').classList.add('hidden');
-
             if (datos.length === 0) {
                 document.getElementById('mensajeVacio').classList.remove('hidden');
             } else {
                 let ultimaFecha = "";
-                let numeroClase = 1; 
-                
+                let numeroClase = 1;
                 datos.forEach(dato => {
                     const mostrarFecha = dato.fechaFormateada !== ultimaFecha;
                     renderizarFila(dato, mostrarFecha, numeroClase, tbody, highlightId);
                     ultimaFecha = dato.fechaFormateada;
-                    numeroClase++; 
+                    numeroClase++;
                 });
             }
             lucide.createIcons();
         }
-
         function renderizarFila(dato, mostrarFecha, numero, tbody, highlightId) {
             const tr = document.createElement('tr');
             const css = "border border-black p-2 text-sm align-top";
             const contenidoFecha = mostrarFecha ? dato.fechaFormateada : "";
             const estiloPendiente = dato.pendiente ? "opacity-50 italic" : "";
             const highlightClass = dato.id === highlightId ? 'highlight-row' : '';
-
             tr.className = highlightClass;
             tr.id = `row-${dato.id}`;
-            
             tr.innerHTML = `
                 <td class="${css} text-center font-bold text-gray-600">${numero}</td>
                 <td class="${css} font-bold text-[#548235] capitalize">${contenidoFecha}</td>
                 <td class="${css} font-semibold">${dato.grados}</td>
                 <td class="${css} uppercase text-xs font-semibold">${dato.area}</td>
-
                 <td class="${css} ${estiloPendiente}">${formatearTextoMultilinea(dato.tema)}</td>
                 <td class="${css} ${estiloPendiente}">${formatearTextoMultilinea(dato.obs)}</td>
-
                 <td class="${css} text-center no-print border-none flex gap-1 justify-center w-24">
                     <button class="btn-editar text-blue-600 hover:bg-blue-100 p-2 rounded" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>
                     <button class="btn-borrar text-red-500 hover:bg-red-100 p-2 rounded" title="Borrar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </td>
-            `;
-            
+                </td>`;
             tr.querySelector('.btn-borrar').onclick = () => window.borrarDato(dato.id);
-            tr.querySelector('.btn-editar').onclick = () => { 
-                window.salirCompilacion(); 
-                window.scrollTo({ top: 0, behavior: 'smooth' }); 
-                window.preparacionEdicion(dato); 
+            tr.querySelector('.btn-editar').onclick = () => {
+                window.salirCompilacion();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                window.preparacionEdicion(dato);
             };
             tbody.appendChild(tr);
-
-            if(highlightId === dato.id) {
-                 setTimeout(() => {
+            if (highlightId === dato.id) {
+                setTimeout(() => {
                     const row = document.getElementById(`row-${highlightId}`);
                     if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 100);
             }
         }
-        
         window.filtrarTabla = () => {
             const filtroGrado = document.getElementById('filtroGrado').value;
             const filtroArea = document.getElementById('filtroArea').value;
-            // NUEVO: Obtener valor del buscador de texto en minúsculas
             const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
-            
             const datosFiltrados = window.TODOS_LOS_REGISTROS.filter(dato => {
                 const coincideGrado = !filtroGrado || (filtroGrado === 'Todos' && dato.grados.includes('Todos')) || dato.grados.includes(filtroGrado);
                 const coincideArea = !filtroArea || dato.area.includes(filtroArea);
-                
-                // NUEVO: Lógica de búsqueda textual (busca en tema, observaciones, área o grado)
                 const contenidoDato = (dato.tema + " " + dato.obs + " " + dato.area + " " + dato.grados).toLowerCase();
                 const coincideTexto = !filtroTexto || contenidoDato.includes(filtroTexto);
-
                 return coincideGrado && coincideArea && coincideTexto;
             });
-            
             renderizarTabla(datosFiltrados);
         };
-
         window.limpiarFiltros = () => {
             document.getElementById('filtroGrado').value = "";
-            document.getElementById('filtroTexto').value = ""; // NUEVO: Limpiar caja de texto
+            document.getElementById('filtroTexto').value = "";
             document.getElementById('ordenarFecha').value = "desc";
-            window.actualizarAreasFiltro(); 
+            window.actualizarAreasFiltro();
             window.filtrarTabla();
-        }
-
+        };
         window.preparacionEdicion = (dato) => {
             window.idEdicionActual = dato.id;
             const form = document.getElementById('seccionFormulario');
@@ -640,26 +529,19 @@
             btn.classList.replace('hover:bg-[#43692a]', 'hover:bg-blue-700');
             document.getElementById('btnText').textContent = "Actualizar";
             document.getElementById('btnCancelar').classList.remove('hidden');
-
             document.getElementById('inputFecha').value = dato.fechaRaw;
-            
             const checkboxes = document.querySelectorAll('.grado-checkbox');
             checkboxes.forEach(cb => { cb.checked = dato.grados.includes(cb.value) || dato.grados === "Todos"; });
             if (dato.grados === "Todos") document.querySelector('input[value="Todos"]').checked = true;
             window.actualizarTextoGrados();
-
             setTimeout(() => {
                 const areasGuardadas = dato.area.split(',').map(s => s.trim());
-                document.querySelectorAll('.area-checkbox').forEach(cb => {
-                    cb.checked = areasGuardadas.includes(cb.value);
-                });
+                document.querySelectorAll('.area-checkbox').forEach(cb => { cb.checked = areasGuardadas.includes(cb.value); });
                 window.actualizarTextoAreas();
             }, 50);
-
             document.getElementById('inputTema').value = dato.tema;
             document.getElementById('inputObs').value = dato.obs;
         };
-
         window.cancelarEdicion = () => {
             window.idEdicionActual = null;
             document.getElementById('seccionFormulario').classList.remove('bg-blue-50');
@@ -670,120 +552,89 @@
             document.getElementById('btnCancelar').classList.add('hidden');
             document.getElementById('inputTema').value = '';
             document.getElementById('inputObs').value = '';
-            
             document.querySelectorAll('.area-checkbox').forEach(cb => cb.checked = false);
             window.actualizarTextoAreas();
         };
-
-        function toggleDropdown(id) { 
+        function toggleDropdown(id) {
             const d = document.getElementById(id);
             d.classList.toggle("show");
         }
-
-        window.onclick = function(e) { 
-            if (!e.target.closest('#btnGrados') && !e.target.closest('#dropdownGrados')) { 
-                document.getElementById('dropdownGrados').classList.remove('show');
-            }
-            if (!e.target.closest('#btnAreas') && !e.target.closest('#dropdownAreas')) { 
-                document.getElementById('dropdownAreas').classList.remove('show');
-            } 
+        window.onclick = function(e) {
+            if (!e.target.closest('#btnGrados') && !e.target.closest('#dropdownGrados')) { document.getElementById('dropdownGrados').classList.remove('show'); }
+            if (!e.target.closest('#btnAreas') && !e.target.closest('#dropdownAreas')) { document.getElementById('dropdownAreas').classList.remove('show'); }
             if (e.target.closest('#confirmModal') && e.target.id !== 'confirmCancel' && e.target.id !== 'confirmAction') { e.preventDefault(); }
-        }
-        
+        };
         function seleccionarTodos(source) {
             document.querySelectorAll('.grado-checkbox').forEach(cb => cb.checked = source.checked);
             window.actualizarTextoGrados();
         }
-
         window.actualizarTextoGrados = () => {
             const cbs = document.querySelectorAll('.grado-checkbox:checked');
             const vals = Array.from(cbs).map(cb => cb.value);
             const btn = document.getElementById('textoGradosSeleccionados');
             const allCb = document.querySelector('input[value="Todos"]');
-            
             const hayPreescolar = vals.includes('Preescolar');
             const hayPrimaria = vals.some(v => v !== 'Preescolar' && v !== 'Todos');
-
             if (vals.includes('Todos') && vals.length > 1) {
                 document.querySelectorAll('.grado-checkbox').forEach(cb => { if (cb.value !== 'Todos') cb.checked = false; });
                 btn.textContent = "Todos";
-            } else if (vals.length === 6 && !vals.includes('Todos')) { 
+            } else if (vals.length === 6 && !vals.includes('Todos')) {
                 document.querySelector('input[value="Todos"]').checked = true;
                 btn.textContent = "Todos";
-            } else if (vals.length === 0) { 
-                btn.textContent = "Seleccionar..."; 
-                if(allCb) allCb.checked = false;
-            } else if (vals.includes('Todos')) { btn.textContent = "Todos"; } 
-            else { 
-                btn.textContent = vals.join(", "); 
-                if(allCb) allCb.checked = false;
+            } else if (vals.length === 0) {
+                btn.textContent = "Seleccionar...";
+                if (allCb) allCb.checked = false;
+            } else if (vals.includes('Todos')) {
+                btn.textContent = "Todos";
+            } else {
+                btn.textContent = vals.join(", ");
+                if (allCb) allCb.checked = false;
             }
             window.actualizarAreas(hayPreescolar, hayPrimaria, vals.includes('Todos'));
-        }
-
+        };
         window.actualizarTextoAreas = () => {
             const cbs = document.querySelectorAll('.area-checkbox:checked');
             const vals = Array.from(cbs).map(cb => cb.value);
             const btn = document.getElementById('textoAreasSeleccionadas');
-            
-            if (vals.length === 0) { 
-                btn.textContent = "SELECCIONAR ÁREA..."; 
-            } else { 
-                btn.textContent = vals.join(", "); 
-            }
-        }
-
+            if (vals.length === 0) { btn.textContent = "SELECCIONAR ÁREA..."; }
+            else { btn.textContent = vals.join(", "); }
+        };
         const gruposPrimaria = [
             { titulo: "ÁREAS", items: ["INGLÉS", "MATEMÁTICAS", "ESPAÑOL (LENGUAJE)", "CIENCIAS NATURALES", "CIENCIAS SOCIALES", "ARTÍSTICA", "EDUCACIÓN FÍSICA", "ÉTICA Y VALORES", "RELIGIÓN", "TECNOLOGÍA E INFORMÁTICA"] },
             { titulo: "PROYECTOS", items: ["ARTESANOS CREATIVOS (ARTES)", "RECREA TU MENTE (LÚDICO-DEPORTIVO)", "LEE-YENDO MÁS ALLÁ...", "ALIMENTA TU CUERPO Y TU MENTE", "MI CUERPO COMUNICA"] },
             { titulo: "", items: ["JORNADA ÚNICA"] },
             { titulo: "ESPECIALES", items: ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS"] }
         ];
-
         const gruposPreescolar = [
             { titulo: "DIMENSIONES", items: ["DIMENSIÓN SOCIOAFECTIVA", "DIMENSIÓN CORPORAL", "DIMENSIÓN COGNITIVA", "DIMENSIÓN COMUNICATIVA", "DIMENSIÓN CREATIVA", "DIMENSIÓN ESPIRITUAL", "DIMENSIÓN ÉTICA"] },
             { titulo: "PROYECTOS", items: ["ARTESANOS CREATIVOS (ARTES)", "RECREA TU MENTE", "LEE-YENDO MÁS ALLÁ...", "ALIMENTA TU CUERPO Y TU MENTE", "MI CUERPO COMUNICA"] },
             { titulo: "", items: ["JORNADA ÚNICA"] },
             { titulo: "ESPECIALES", items: ["INSTITUCIONAL"] }
         ];
-
         function generarCheckboxesAreas(grupos) {
             let html = '';
             grupos.forEach(grupo => {
-                if(grupo.titulo) {
-                    html += `<div class="font-bold text-xs text-gray-500 uppercase mt-2 mb-1 px-2 border-b border-gray-100">${grupo.titulo}</div>`;
-                }
+                if (grupo.titulo) { html += `<div class="font-bold text-xs text-gray-500 uppercase mt-2 mb-1 px-2 border-b border-gray-100">${grupo.titulo}</div>`; }
                 grupo.items.forEach(item => {
-                    html += `<label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
-                                <input type="checkbox" value="${item}" class="area-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoAreas()">
-                                <span class="text-sm font-medium">${item}</span>
-                             </label>`;
+                    html += `<label class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer"><input type="checkbox" value="${item}" class="area-checkbox rounded text-[#548235] focus:ring-[#548235]" onchange="actualizarTextoAreas()"><span class="text-sm font-medium">${item}</span></label>`;
                 });
             });
             return html;
         }
-
         const opPrimaria = `<optgroup label="ÁREAS"><option>INGLÉS</option><option>MATEMÁTICAS</option><option>ESPAÑOL (LENGUAJE)</option><option>CIENCIAS NATURALES</option><option>CIENCIAS SOCIALES</option><option>ARTÍSTICA</option><option>EDUCACIÓN FÍSICA</option><option>ÉTICA Y VALORES</option><option>RELIGIÓN</option><option>TECNOLOGÍA E INFORMÁTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE (LÚDICO-DEPORTIVO)</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option><option>HORAS COMPLEMENTARIAS</option></optgroup>`;
         const opPreescolar = `<optgroup label="DIMENSIONES"><option>DIMENSIÓN SOCIOAFECTIVA</option><option>DIMENSIÓN CORPORAL</option><option>DIMENSIÓN COGNITIVA</option><option>DIMENSIÓN COMUNICATIVA</option><option>DIMENSIÓN CREATIVA</option><option>DIMENSIÓN ESPIRITUAL</option><option>DIMENSIÓN ÉTICA</option></optgroup><optgroup label="PROYECTOS"><option>ARTESANOS CREATIVOS (ARTES)</option><option>RECREA TU MENTE</option><option>LEE-YENDO MÁS ALLÁ...</option><option>ALIMENTA TU CUERPO Y TU MENTE</option><option>MI CUERPO COMUNICA</option></optgroup><option>JORNADA ÚNICA</option><optgroup label="ESPECIALES"><option>INSTITUCIONAL</option></optgroup>`;
-
         window.actualizarAreas = (hayPre, hayOtros, esTodos) => {
             const divDropdown = document.getElementById('dropdownAreas');
             const usarPreescolar = hayPre && !hayOtros && !esTodos;
-            
-            if (usarPreescolar) {
-                divDropdown.innerHTML = generarCheckboxesAreas(gruposPreescolar);
-            } else {
-                divDropdown.innerHTML = generarCheckboxesAreas(gruposPrimaria);
-            }
-            
+            if (usarPreescolar) { divDropdown.innerHTML = generarCheckboxesAreas(gruposPreescolar); }
+            else { divDropdown.innerHTML = generarCheckboxesAreas(gruposPrimaria); }
             window.actualizarTextoAreas();
-        }
-        window.actualizarAreas(false, true, false); 
-        
+        };
+        window.actualizarAreas(false, true, false);
         window.actualizarAreasFiltro = () => {
             const selFiltroGrado = document.getElementById('filtroGrado');
             const selFiltroArea = document.getElementById('filtroArea');
-            const valorActual = selFiltroArea.value; 
+            const valorActual = selFiltroArea.value;
             const gradoSeleccionado = selFiltroGrado.value;
             const esPreescolar = gradoSeleccionado === 'Preescolar';
             let opciones = '<option value="">-- Todas --</option>';
@@ -792,76 +643,129 @@
             else { opciones += opPrimaria; opciones += opPreescolar.split('</optgroup>')[0] + '</optgroup>'; }
             selFiltroArea.innerHTML = opciones;
             const existe = Array.from(selFiltroArea.options).some(op => op.value === valorActual);
-            if(existe) selFiltroArea.value = valorActual;
+            if (existe) selFiltroArea.value = valorActual;
         };
-
-        window.descargarPDF = () => {
+        window.descargarPDF = async () => {
             const btn = document.getElementById('btnExportar');
             const txtOriginal = btn.innerHTML;
             btn.innerHTML = `<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Generando...`;
             btn.disabled = true;
             lucide.createIcons();
-            
-            const elemento = document.getElementById('contenedorExportar');
-            const headerWeb = document.getElementById('headerWeb');
-            const headerPDF = document.getElementById('headerPDF');
-            
-            document.getElementById('vistaPrincipal').style.display = 'none';
-            document.getElementById('vistaCompilacion').classList.remove('hidden');
-            document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
-            
-            headerWeb.style.display = 'none';
-            headerPDF.classList.remove('hidden');
-            headerPDF.classList.add('flex');
-            
-            elemento.classList.add('pdf-mode-active');
-
-            /* AJUSTE: asegurar scroll arriba antes de capturar */
-            const wrap = document.getElementById('contenedorTablaWrapper');
-            if (wrap) wrap.scrollTop = 0;
-            window.scrollTo(0, 0);
-
-            const opt = { 
-                margin: [0.3, 0.4, 0.3, 0.4], 
-                filename: 'Diario_Procesos.pdf', 
-                image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    logging: false,
-                    backgroundColor: '#ffffff',
-                    scrollX: 0,
-                    scrollY: 0,
-                    windowWidth: elemento.scrollWidth,
-                    windowHeight: elemento.scrollHeight
-                }, 
-                pagebreak: { mode: ['css', 'legacy'] }, 
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } 
-            };
-
-            html2pdf().set(opt).from(elemento).save()
-            .then(() => restaurarVista(btn, txtOriginal, headerWeb, headerPDF, elemento))
-            .catch(err => {
+            try {
+                const datos = obtenerDatosFiltradosParaExportar();
+                if (!datos.length) {
+                    alert("No hay registros visibles para exportar.");
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                pdf.setFillColor(146, 208, 80);
+                pdf.rect(0.3, 0.3, pageWidth - 0.6, 1.05, 'F');
+                pdf.setDrawColor(84, 130, 53);
+                pdf.setLineWidth(0.02);
+                pdf.line(0.3, 1.35, pageWidth - 0.3, 1.35);
+                const escudoDataUrl = await cargarImagenComoDataURL('escudo.png');
+                if (escudoDataUrl) {
+                    try { pdf.addImage(escudoDataUrl, 'PNG', 0.45, 0.43, 0.65, 0.65); } catch (e) {}
+                }
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFontSize(12);
+                pdf.text('I.E DE MARÍA, SEDE RURAL SANTA JUANA.', pageWidth / 2, 0.60, { align: 'center' });
+                pdf.setTextColor(255, 255, 255);
+                pdf.setFontSize(11);
+                pdf.text('DIARIO DE PROCESOS 2026.', pageWidth / 2, 0.82, { align: 'center' });
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFontSize(9.5);
+                pdf.text('DOCENTE: Oscar Evelio Barrientos Henao.', 1.25, 1.10);
+                const bodyRows = [];
+                let ultimaFecha = "";
+                datos.forEach((dato, index) => {
+                    const fechaMostrar = dato.fechaFormateada !== ultimaFecha ? (dato.fechaFormateada || '') : '';
+                    bodyRows.push([
+                        String(index + 1),
+                        fechaMostrar,
+                        String(dato.grados ?? ''),
+                        String(dato.area ?? ''),
+                        String(dato.tema ?? '').replace(/\r\n/g, '\n'),
+                        String(dato.obs ?? '').replace(/\r\n/g, '\n')
+                    ]);
+                    ultimaFecha = dato.fechaFormateada;
+                });
+                pdf.autoTable({
+                    startY: 1.5,
+                    head: [['No.', 'Fecha', 'Grado', 'Área', 'Tema y/o Actividad', 'Observaciones']],
+                    body: bodyRows,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica',
+                        fontSize: 8,
+                        cellPadding: 0.05,
+                        overflow: 'linebreak',
+                        valign: 'top',
+                        textColor: [0, 0, 0],
+                        lineColor: [0, 0, 0],
+                        lineWidth: 0.01
+                    },
+                    headStyles: {
+                        fillColor: [84, 130, 53],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold',
+                        halign: 'left',
+                        valign: 'middle'
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 0.45, halign: 'center' },
+                        1: { cellWidth: 1.35 },
+                        2: { cellWidth: 0.95 },
+                        3: { cellWidth: 1.45 },
+                        4: { cellWidth: 3.05 },
+                        5: { cellWidth: 2.45 }
+                    },
+                    margin: { top: 1.5, right: 0.3, bottom: 0.35, left: 0.3 },
+                    didParseCell: function (data) {
+                        if (data.section === 'body' && data.column.index === 1 && data.cell.raw) {
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.styles.textColor = [84, 130, 53];
+                        }
+                        if (data.section === 'body' && data.column.index === 2) {
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                        if (data.section === 'body' && data.column.index === 3) {
+                            data.cell.styles.fontSize = 7.5;
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    },
+                    didDrawPage: function (data) {
+                        if (data.pageNumber > 1) {
+                            pdf.setFillColor(146, 208, 80);
+                            pdf.rect(0.3, 0.3, pageWidth - 0.6, 0.55, 'F');
+                            pdf.setDrawColor(84, 130, 53);
+                            pdf.setLineWidth(0.02);
+                            pdf.line(0.3, 0.85, pageWidth - 0.3, 0.85);
+                            pdf.setFont('helvetica', 'bold');
+                            pdf.setTextColor(0, 0, 0);
+                            pdf.setFontSize(10);
+                            pdf.text('DIARIO DE PROCESOS 2026.', pageWidth / 2, 0.62, { align: 'center' });
+                        }
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setFontSize(8);
+                        pdf.setTextColor(110, 110, 110);
+                        pdf.text(`Página ${data.pageNumber}`, pageWidth - 0.6, pageHeight - 0.15, { align: 'right' });
+                    }
+                });
+                pdf.save('Diario_Procesos.pdf');
+            } catch (err) {
                 console.error(err);
                 alert("Error al generar PDF.");
-                restaurarVista(btn, txtOriginal, headerWeb, headerPDF, elemento);
-            });
-        }
-
-        function restaurarVista(btn, txtOriginal, headerWeb, headerPDF, elemento) {
-            document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
-            
-            headerWeb.style.display = '';
-            headerPDF.classList.add('hidden');
-            headerPDF.classList.remove('flex');
-            
-            elemento.classList.remove('pdf-mode-active');
-            
-            btn.innerHTML = txtOriginal;
-            btn.disabled = false;
-            lucide.createIcons();
-        }
-        
+            } finally {
+                btn.innerHTML = txtOriginal;
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        };
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/Diariodeprocesos2026/sw.js').catch(error => console.error(error));

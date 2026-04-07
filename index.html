@@ -72,8 +72,16 @@
         <div id="vistaPrincipal">
             <section id="seccionFormulario" class="p-4 md:p-6 bg-gray-50 border-b border-gray-200 no-print">
                 <h2 class="text-lg font-bold text-[#548235] mb-4 border-b border-[#548235] pb-1">Nuevo Registro</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:col-cols-12 gap-4">
-                    <div class="flex flex-col lg:col-span-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+                    <!-- Cambio Quirúrgico: Selector de Periodo -->
+                    <div class="flex flex-col lg:col-span-2">
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-1">Periodo</label>
+                        <select id="inputPeriodo" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none font-bold text-[#548235]">
+                            <option value="1">1° Periodo</option>
+                            <option value="2" selected>2° Periodo</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col lg:col-span-2">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Fecha</label>
                         <input type="date" id="inputFecha" max="2030-12-31" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#548235] outline-none uppercase">
                     </div>
@@ -95,7 +103,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex flex-col lg:col-span-7 relative">
+                    <div class="flex flex-col lg:col-span-6 relative">
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1">Área / Asignatura</label>
                         <button type="button" onclick="toggleDropdown('dropdownAreas')" id="btnAreas" class="w-full p-2 border border-gray-300 rounded bg-white text-left flex justify-between items-center focus:ring-2 focus:ring-[#548235]">
                             <span id="textoAreasSeleccionadas" class="truncate text-sm font-medium uppercase">SELECCIONAR ÁREA...</span>
@@ -135,6 +143,11 @@
                     <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver
                 </button>
                 <div class="flex gap-2 w-full md:w-auto">
+                    <!-- Cambio Quirúrgico: Filtro de Periodo en Consulta -->
+                    <select id="filtroPeriodo" class="bg-white border-2 border-[#548235] rounded font-bold px-3 py-1 text-sm text-[#548235]" onchange="filtrarTabla()">
+                        <option value="1">1° Periodo (Archivo)</option>
+                        <option value="2" selected>2° Periodo (Actual)</option>
+                    </select>
                     <button onclick="irAlFinal()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 text-sm">
                         <i data-lucide="arrow-down-circle" class="w-4 h-4"></i> Ir al Final
                     </button>
@@ -291,6 +304,9 @@
             let area = document.getElementById('textoAreasSeleccionadas').textContent;
             const tema = document.getElementById('inputTema').value;
             const obs = document.getElementById('inputObs').value;
+            // Cambio Quirúrgico: Captura de Periodo
+            const periodo = document.getElementById('inputPeriodo').value;
+
             const textoPlaceholderArea = "SELECCIONAR ÁREA...";
             const areasExcepcion = ["INSTITUCIONAL", "HORAS COMPLEMENTARIAS", "ACTIVIDADES COMPLEMENTARIAS"];
             const esExcepcion = areasExcepcion.some(ex => area.includes(ex));
@@ -310,7 +326,10 @@
             let fechaTexto = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
             fechaTexto = fechaTexto.replace(',', '');
             fechaTexto = fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1);
-            const datosGuardar = { fechaRaw: fecha, fechaFormateada: fechaTexto, grados, area, tema, obs, timestamp: Date.now() };
+            
+            // Cambio Quirúrgico: Incluir Periodo en el objeto
+            const datosGuardar = { fechaRaw: fecha, fechaFormateada: fechaTexto, grados, area, tema, obs, periodo, timestamp: Date.now() };
+            
             try {
                 if (window.idEdicionActual) {
                     await updateDoc(doc(db, 'diarios_docentes', CLAVE_PERSONAL, 'entradas', window.idEdicionActual), datosGuardar);
@@ -377,13 +396,17 @@
             const filtroGrado = document.getElementById('filtroGrado').value;
             const filtroArea = document.getElementById('filtroArea').value;
             const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
+            const filtroPeriodo = document.getElementById('filtroPeriodo').value;
             const orden = document.getElementById('ordenarFecha').value;
             const datos = window.TODOS_LOS_REGISTROS.filter(dato => {
+                // Cambio Quirúrgico: Filtro por periodo (si no tiene periodo asumimos 1 por los antiguos)
+                const periodoDato = dato.periodo || "1";
+                const coincidePeriodo = periodoDato === filtroPeriodo;
                 const coincideGrado = !filtroGrado || (filtroGrado === 'Todos' && dato.grados.includes('Todos')) || dato.grados.includes(filtroGrado);
                 const coincideArea = !filtroArea || dato.area.includes(filtroArea);
                 const contenidoDato = `${dato.tema || ''} ${dato.obs || ''} ${dato.area || ''} ${dato.grados || ''}`.toLowerCase();
                 const coincideTexto = !filtroTexto || contenidoDato.includes(filtroTexto);
-                return coincideGrado && coincideArea && coincideTexto;
+                return coincidePeriodo && coincideGrado && coincideArea && coincideTexto;
             });
             if (datos.length > 1) {
                 datos.sort((a, b) => {
@@ -504,12 +527,17 @@
             const filtroGrado = document.getElementById('filtroGrado').value;
             const filtroArea = document.getElementById('filtroArea').value;
             const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
+            const filtroPeriodo = document.getElementById('filtroPeriodo').value;
+
             const datosFiltrados = window.TODOS_LOS_REGISTROS.filter(dato => {
+                // Cambio Quirúrgico: Aplicar filtro de periodo también aquí
+                const periodoDato = dato.periodo || "1";
+                const coincidePeriodo = periodoDato === filtroPeriodo;
                 const coincideGrado = !filtroGrado || (filtroGrado === 'Todos' && dato.grados.includes('Todos')) || dato.grados.includes(filtroGrado);
                 const coincideArea = !filtroArea || dato.area.includes(filtroArea);
                 const contenidoDato = (dato.tema + " " + dato.obs + " " + dato.area + " " + dato.grados).toLowerCase();
                 const coincideTexto = !filtroTexto || contenidoDato.includes(filtroTexto);
-                return coincideGrado && coincideArea && coincideTexto;
+                return coincidePeriodo && coincideGrado && coincideArea && coincideTexto;
             });
             renderizarTabla(datosFiltrados);
         };
@@ -517,6 +545,7 @@
             document.getElementById('filtroGrado').value = "";
             document.getElementById('filtroTexto').value = "";
             document.getElementById('ordenarFecha').value = "desc";
+            // No reseteamos el periodo por usabilidad, o podemos hacerlo a '2'
             window.actualizarAreasFiltro();
             window.filtrarTabla();
         };
@@ -530,6 +559,10 @@
             document.getElementById('btnText').textContent = "Actualizar";
             document.getElementById('btnCancelar').classList.remove('hidden');
             document.getElementById('inputFecha').value = dato.fechaRaw;
+            
+            // Cambio Quirúrgico: Sincronizar Periodo en edición
+            if (dato.periodo) document.getElementById('inputPeriodo').value = dato.periodo;
+
             const checkboxes = document.querySelectorAll('.grado-checkbox');
             checkboxes.forEach(cb => { cb.checked = dato.grados.includes(cb.value) || dato.grados === "Todos"; });
             if (dato.grados === "Todos") document.querySelector('input[value="Todos"]').checked = true;
